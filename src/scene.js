@@ -1,4 +1,3 @@
-
 import gsap from "gsap";
 import CryptoJS from 'crypto-js';
 
@@ -12,7 +11,7 @@ export class Scene {
 
         // Game configuration
         this.GRID_SIZE = 9;
-        this.JEWEL_TYPES = 5; // Configurable number of jewel types
+        this.JEWEL_TYPES = 4; // Configurable number of jewel types (excluding bonus boxes)
         this.grid = [];
         this.isAnimating = false;
         this.score = 0;
@@ -21,10 +20,11 @@ export class Scene {
         this.gameOver = false;
         this.debugMode = false; // Track debug mode for numbers
         this.gridOverlayVisible = false; // Track grid overlay visibility
+        this.gamePaused = false; // Track if game is paused
         
         // Jewel colors and letters - add more colors as needed
-        this.jewelColors = ['#FF6B6B', '#4ECDC4', '#0066FF', '#FFA726', '#9B59B6']; // Red, Teal, Primary Blue, Orange, Purple
-        this.jewelLetters = ['r', 't', 'b', 'o', 'p']; // r=red, t=teal, b=blue, o=orange, p=purple
+        this.jewelColors = ['#FF6B6B', '#4ECDC4', '#0066FF', '#FFA726', '#9B59B6', '#FFFFFF', '#808080']; // Red, Teal, Primary Blue, Orange, Purple, White (bonus), Grey (L-bonus)
+        this.jewelLetters = ['r', 't', 'b', 'o', 'p', 'w', 'g']; // r=red, t=teal, b=blue, o=orange, p=purple, w=white (bonus), g=grey (L-bonus)
         
         // Initialize game
         this.initializeGrid();
@@ -42,6 +42,9 @@ export class Scene {
             }
         }
         
+        // Create a sample grey bonus box at the center
+        this.grid[4][4] = 6; // Grey jewel index
+        
         // Remove initial matches
         this.removeInitialMatches();
     }
@@ -56,6 +59,9 @@ export class Scene {
             
             for (let row = 0; row < this.GRID_SIZE; row++) {
                 for (let col = 0; col < this.GRID_SIZE; col++) {
+                    // Skip the bonus box position
+                    if (row === 4 && col === 4) continue;
+                    
                     if (this.wouldCreateMatch(row, col, this.grid[row][col])) {
                         this.grid[row][col] = Math.floor(Math.random() * this.JEWEL_TYPES);
                         hasMatches = true;
@@ -117,6 +123,12 @@ export class Scene {
                 jewelElement.style.height = `${this.jewelSize}px`;
                 jewelElement.style.left = `${this.gridPadding + col * (this.jewelSize + this.jewelGap)}px`;
                 jewelElement.style.top = `${this.gridPadding + row * (this.jewelSize + this.jewelGap)}px`;
+                
+                // Style bonus boxes (white and grey jewels)
+                if (this.grid[row][col] === 5 || this.grid[row][col] === 6) {
+                    jewelElement.dataset.bonusBox = 'true';
+                }
+                
                 // Debug numbers removed - will be shown with G key
                 gridElement.appendChild(jewelElement);
             }
@@ -149,6 +161,8 @@ export class Scene {
                 this.toggleDebugNumbers();
             } else if (e.key === 'h' || e.key === 'H') {
                 this.toggleGridOverlay();
+            } else if (e.key === 'j' || e.key === 'J') {
+                this.toggleMask();
             }
         });
     }
@@ -205,7 +219,7 @@ export class Scene {
     }
 
     handleDragStart(e) {
-        if (this.isAnimating || this.gameOver || !this.gameStarted) return;
+        if (this.isAnimating || this.gameOver || !this.gameStarted || this.gamePaused) return;
         
         e.preventDefault();
         const jewelElement = e.target.closest('.jewel');
@@ -308,35 +322,263 @@ export class Scene {
             return;
         }
         
-        // Test the swap
+        // Check if one of the swapped jewels is a bonus box
+        const isBonusBox1 = jewel1.dataset.color === 'w' || jewel1.dataset.color === 'g';
+        const isBonusBox2 = jewel2.dataset.color === 'w' || jewel2.dataset.color === 'g';
+        
+        if (isBonusBox1 || isBonusBox2) {
+            // Determine which bonus box and its type
+            const bonusBoxJewel = isBonusBox1 ? jewel1 : jewel2;
+            const bonusBoxType = bonusBoxJewel.dataset.color;
+            const bonusBoxRow = isBonusBox1 ? row1 : row2;
+            const bonusBoxCol = isBonusBox1 ? col1 : col2;
+            
+            if (bonusBoxType === 'g') {
+                // Grey bonus box: Create diamond-shaped destruction
+                console.log("Grey bonus box swap detected! Creating diamond destruction");
+                
+                const jewelsToClear = [];
+                
+                // Create diamond pattern: 3 blocks in each direction + diagonals
+                for (let r = Math.max(0, bonusBoxRow - 3); r <= Math.min(this.GRID_SIZE - 1, bonusBoxRow + 3); r++) {
+                    for (let c = Math.max(0, bonusBoxCol - 3); c <= Math.min(this.GRID_SIZE - 1, bonusBoxCol + 3); c++) {
+                        // Calculate Manhattan distance (diamond shape)
+                        const distance = Math.abs(r - bonusBoxRow) + Math.abs(c - bonusBoxCol);
+                        if (distance <= 3) {
+                            jewelsToClear.push({ row: r, col: c });
+                        }
+                    }
+                }
+                
+                if (jewelsToClear.length > 0) {
+                    // Animate the swap
+                    this.animateSwap(row1, col1, row2, col2, () => {
+                        // Convert the diamond positions to match format
+                        const diamondMatches = jewelsToClear.map(pos => ({ row: pos.row, col: pos.col }));
+                        
+                        // Use the same animation and block falling procedure as regular matches
+                        this.animateClearMatches(diamondMatches, [], () => {
+                            this.handleBlockFallingAfterMatch(diamondMatches, []);
+                        });
+                    });
+                    return;
+                }
+            } else {
+                // White bonus box: Clear all jewels of the target color
+                const colorToClear = isBonusBox1 ? jewel2.dataset.color : jewel1.dataset.color;
+                
+                if (colorToClear) {
+                    //console.log(`White bonus box swap detected! Clearing all ${colorToClear} jewels`);
+                    
+                    // Find all jewels of the target color
+                    const jewelsToClear = [];
+                    const allJewels = document.querySelectorAll('.jewel');
+                    
+                    allJewels.forEach(jewel => {
+                        if (jewel.dataset.color === colorToClear) {
+                            const row = parseInt(jewel.dataset.row);
+                            const col = parseInt(jewel.dataset.col);
+                            if (row >= 0 && col >= 0) {
+                                jewelsToClear.push({ row, col });
+                            }
+                        }
+                    });
+                    
+                    // Also add the position where the swapped jewel will end up
+                    jewelsToClear.push({ row: bonusBoxRow, col: bonusBoxCol });
+                    
+                    if (jewelsToClear.length > 0) {
+                        // Animate the swap
+                        this.animateSwap(row1, col1, row2, col2, () => {
+                            // Clear all jewels of the target color
+                            this.clearAllJewelsOfColor(jewelsToClear, () => {
+                                this.handleBlockFallingAfterMatch([], []); // No matches, no bonus boxes
+                            });
+                        });
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // Normal swap logic
         const color1 = jewel1.dataset.color;
         const color2 = jewel2.dataset.color;
         
         jewel1.dataset.color = color2;
         jewel2.dataset.color = color1;
         
-        const matches = this.findMatches();
+        const { matches, bonusBoxes } = this.findMatches(true);
         
         jewel1.dataset.color = color1;
         jewel2.dataset.color = color2;
         
         if (matches.length > 0) {
             this.animateSwap(row1, col1, row2, col2, () => {
-                this.processMatches();
+                this.processMatches(bonusBoxes);
             });
         } else {
             this.showInvalidMoveFeedback(row1, col1, row2, col2);
         }
     }
+    
+    clearAllJewelsOfColor(jewelsToClear, callback) {
+        const elements = [];
+        
+        // Also clear any bonus boxes that were involved in the swap
+        const allJewels = document.querySelectorAll('.jewel');
+        allJewels.forEach(jewel => {
+            if ((jewel.dataset.color === 'w' || jewel.dataset.color === 'g') && jewel.dataset.bonusBox === 'true') {
+                const row = parseInt(jewel.dataset.row);
+                const col = parseInt(jewel.dataset.col);
+                if (row >= 0 && col >= 0) {
+                    //console.log(`Clearing ${jewel.dataset.color === 'w' ? 'white' : 'grey'} bonus box at [${row},${col}]`);
+                    elements.push(jewel);
+                    
+                    // Mark as cleared and void
+                    jewel.dataset.cleared = 'true';
+                    jewel.dataset.void = 'true';
+                    
+                    // Update the grid
+                    if (row >= 0 && row < this.GRID_SIZE && col >= 0 && col < this.GRID_SIZE) {
+                        this.grid[row][col] = -1;
+                    }
+                }
+            }
+        });
+        
+        jewelsToClear.forEach(jewelPos => {
+            const element = document.querySelector(`[data-row="${jewelPos.row}"][data-col="${jewelPos.col}"]`);
+            if (element) {
+                //console.log(`Clearing jewel at [${jewelPos.row},${jewelPos.col}]`);
+                elements.push(element);
+                
+                // Mark as cleared and void
+                element.dataset.cleared = 'true';
+                element.dataset.void = 'true';
+                
+                // Update the grid
+                if (jewelPos.row >= 0 && jewelPos.row < this.GRID_SIZE && jewelPos.col >= 0 && jewelPos.col < this.GRID_SIZE) {
+                    this.grid[jewelPos.row][jewelPos.col] = -1;
+                }
+            }
+        });
+        
+        if (elements.length > 0) {
+            // Create animation for clearing the jewels
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    //console.log("Bonus box clear animation complete");
+                    callback();
+                }
+            });
+            
+            tl.to(elements, {
+                rotation: 360,
+                scale: 0,
+                duration: 0.25,
+                ease: "power2.out",
+                transformOrigin: "center center"
+            }, 0);
+        } else {
+            callback();
+        }
+        
+        // After clearing, trigger block falling
+        setTimeout(() => {
+            this.handleBlockFallingAfterBonusBoxClear();
+        }, 100);
+    }
+    
+    handleBlockFallingAfterBonusBoxClear() {
+        //console.log("=== HANDLING BLOCK FALLING AFTER BONUS BOX CLEAR ===");
+        
+        // Count all cleared blocks per column
+        const clearedPerColumn = new Array(this.GRID_SIZE).fill(0);
+        for (let col = 0; col < this.GRID_SIZE; col++) {
+            for (let row = 0; row < this.GRID_SIZE; row++) {
+                const blockElement = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (blockElement && (blockElement.dataset.cleared === 'true' || blockElement.dataset.void === 'true')) {
+                    clearedPerColumn[col]++;
+                }
+            }
+        }
+        
+        // Create a snapshot of the current grid state to ensure consistent calculations
+        const gridSnapshot = this.createGridSnapshot();
+        
+        const blocksToFall = [];
+        
+        for (let col = 0; col < this.GRID_SIZE; col++) {
+            if (clearedPerColumn[col] > 0) {
+                for (let row = 0; row < this.GRID_SIZE; row++) {
+                    const blockElement = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                    if (blockElement && !blockElement.dataset.isNew && blockElement.dataset.cleared !== 'true' && blockElement.dataset.void !== 'true') {
+                        // Allow both regular blocks AND existing bonus boxes to fall
+                        const spacesToFall = this.calculateSpacesToFallFromSnapshot(row, col, gridSnapshot);
+                        if (spacesToFall > 0) {
+                            blocksToFall.push({
+                                element: blockElement,
+                                currentRow: row,
+                                targetRow: row + spacesToFall,
+                                col: col,
+                                spacesToFall: spacesToFall
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        const newBlocks = [];
+        for (let col = 0; col < this.GRID_SIZE; col++) {
+            for (let i = 0; i < clearedPerColumn[col]; i++) {
+                const newJewelType = Math.floor(Math.random() * this.JEWEL_TYPES);
+                const newBlock = this.createNewBlock(col, newJewelType, i);
+                newBlocks.push(newBlock);
+            }
+        }
+        
+        const allBlocksToMove = [...blocksToFall, ...newBlocks];
+        
+        //console.log("=== BLOCKS TO FALL AFTER BONUS BOX CLEAR ===");
+        blocksToFall.forEach((block, index) => {
+            //console.log(`Falling block ${index}: from [${block.currentRow},${block.col}] to [${block.targetRow},${block.col}] (${block.spacesToFall} spaces)`);
+        });
+        
+        //console.log("=== NEW BLOCKS AFTER BONUS BOX CLEAR ===");
+        newBlocks.forEach((block, index) => {
+            //console.log(`New block ${index}: column ${block.col}, target row ${block.targetRow}, stack index ${block.stackIndex}`);
+        });
+        
+        this.isAnimating = true;
+        this.animateAllBlocksToFinalPositions(allBlocksToMove);
+    }
+    
+    calculateSpacesToFall(row, col, clearedInColumn) {
+        let spacesToFall = 0;
+        for (let checkRow = row + 1; checkRow < this.GRID_SIZE; checkRow++) {
+            const blockAtCheckRow = document.querySelector(`[data-row="${checkRow}"][data-col="${col}"]`);
+            // A space is empty if: no block exists, block is cleared, block is void, OR block is a bonus box that was cleared
+            if (!blockAtCheckRow || blockAtCheckRow.dataset.cleared === 'true' || blockAtCheckRow.dataset.void === 'true') {
+                spacesToFall++;
+            }
+            // Note: Bonus boxes (both white 'w' and grey 'g') that are NOT cleared are treated as filled spaces
+            // and will prevent blocks from falling through them
+        }
+        return spacesToFall;
+    }
 
-    findMatches() {
+    findMatches(allowBonusBoxes = false) {
         const matches = [];
+        const bonusBoxes = [];
         const visited = new Set();
         
-        console.log("=== FINDING MATCHES ===");
+        //console.log("=== FINDING MATCHES ===");
+        //console.log(`Allow bonus boxes: ${allowBonusBoxes}`);
         
         // First, let's log the current state of the grid for debugging
-        console.log("Current grid state:");
+        //console.log("Current grid state:");
         for (let row = 0; row < this.GRID_SIZE; row++) {
             let rowStr = "";
             for (let col = 0; col < this.GRID_SIZE; col++) {
@@ -347,10 +589,14 @@ export class Scene {
                     rowStr += "- ";
                 }
             }
-            console.log(`Row ${row}: ${rowStr}`);
+            //console.log(`Row ${row}: ${rowStr}`);
         }
         
-        // Horizontal matches
+        // Find all horizontal and vertical matches first (but don't process them yet)
+        const horizontalMatches = [];
+        const verticalMatches = [];
+        
+        // Horizontal matches (check for 3, 4, and 5 jewel matches)
         for (let row = 0; row < this.GRID_SIZE; row++) {
             for (let col = 0; col < this.GRID_SIZE - 2; col++) {
                 const jewel1 = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
@@ -362,30 +608,49 @@ export class Scene {
                     const color2 = jewel2.dataset.color;
                     const color3 = jewel3.dataset.color;
                     
-                    // Debug: Log the actual color values
                     if (color1 && color2 && color3) {
-                        console.log(`Checking horizontal at [${row},${col}]: colors=${color1},${color2},${color3}`);
-                    }
-                    
-                    if (color1 && color2 && color3 && color1 === color2 && color2 === color3) {
-                        console.log(`Found HORIZONTAL match at row ${row}, cols ${col}-${col+2}: ${color1}${color2}${color3}`);
-                        console.log(`  Checking if blocks are already visited...`);
-                        for (let c = col; c <= col + 2; c++) {
-                            const key = `${row}-${c}`;
-                            if (!visited.has(key)) {
-                                matches.push({ row, col: c });
-                                visited.add(key);
-                                console.log(`  Added to matches: [${row},${c}] = ${color1}`);
-                            } else {
-                                console.log(`  Skipped [${row},${c}] = ${color1} (already visited)`);
+                        // Skip if any of the colors are bonus boxes (they should never participate in matches)
+                        if (color1 === 'w' || color2 === 'w' || color3 === 'w' || color1 === 'g' || color2 === 'g' || color3 === 'g') {
+                            continue;
+                        }
+                        
+                        // Check if colors match (only for non-bonus box jewels)
+                        if (color1 === color2 && color2 === color3) {
+                            // Check for longer matches (4 and 5 jewels)
+                            let matchLength = 3;
+                            let endCol = col + 2;
+                            
+                            // Check for 4th jewel
+                            const jewel4 = document.querySelector(`[data-row="${row}"][data-col="${col + 3}"]`);
+                            if (jewel4 && color1 === jewel4.dataset.color && jewel4.dataset.color !== 'w' && jewel4.dataset.color !== 'g') {
+                                matchLength = 4;
+                                endCol = col + 3;
+                                
+                                // Check for 5th jewel
+                                const jewel5 = document.querySelector(`[data-row="${row}"][data-col="${col + 4}"]`);
+                                if (jewel5 && color1 === jewel5.dataset.color && jewel5.dataset.color !== 'w' && jewel5.dataset.color !== 'g') {
+                                    matchLength = 5;
+                                    endCol = col + 4;
+                                }
                             }
+                            
+                            //console.log(`Found HORIZONTAL ${matchLength}-jewel match at row ${row}, cols ${col}-${endCol}: ${color1.repeat(matchLength)}`);
+                            
+                            // Store horizontal match for L-shape detection (don't process yet)
+                            horizontalMatches.push({
+                                row: row,
+                                startCol: col,
+                                endCol: endCol,
+                                color: color1,
+                                length: matchLength
+                            });
                         }
                     }
                 }
             }
         }
         
-        // Vertical matches
+        // Vertical matches (check for 3, 4, and 5 jewel matches)
         for (let col = 0; col < this.GRID_SIZE; col++) {
             for (let row = 0; row < this.GRID_SIZE - 2; row++) {
                 const jewel1 = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
@@ -397,41 +662,178 @@ export class Scene {
                     const color2 = jewel2.dataset.color;
                     const color3 = jewel3.dataset.color;
                     
-                    // Debug: Log the actual color values
                     if (color1 && color2 && color3) {
-                        console.log(`Checking vertical at [${row},${col}]: colors=${color1},${color2},${color3}`);
-                    }
-                    
-                    if (color1 && color2 && color3 && color1 === color2 && color2 === color3) {
-                        console.log(`Found VERTICAL match at col ${col}, rows ${row}-${row+2}: ${color1}${color2}${color3}`);
-                        console.log(`  Checking if blocks are already visited...`);
-                        for (let r = row; r <= row + 2; r++) {
-                            const key = `${r}-${col}`;
-                            if (!visited.has(key)) {
-                                matches.push({ row: r, col });
-                                visited.add(key);
-                                console.log(`  Added to matches: [${r},${col}] = ${color1}`);
-                            } else {
-                                console.log(`  Skipped [${r},${col}] = ${color1} (already visited)`);
+                        // Skip if any of the colors are bonus boxes
+                        if (color1 === 'w' || color2 === 'w' || color3 === 'w' || color1 === 'g' || color2 === 'g' || color3 === 'g') {
+                            continue;
+                        }
+                        
+                        // Check if colors match
+                        if (color1 === color2 && color2 === color3) {
+                            // Check for longer matches (4 and 5 jewels)
+                            let matchLength = 3;
+                            let endRow = row + 2;
+                            
+                            // Check for 4th jewel
+                            const jewel4 = document.querySelector(`[data-row="${row + 3}"][data-col="${col}"]`);
+                            if (jewel4 && color1 === jewel4.dataset.color && jewel4.dataset.color !== 'w' && jewel4.dataset.color !== 'g') {
+                                matchLength = 4;
+                                endRow = row + 3;
+                                
+                                // Check for 5th jewel
+                                const jewel5 = document.querySelector(`[data-row="${row + 4}"][data-col="${col}"]`);
+                                if (jewel5 && color1 === jewel5.dataset.color && jewel5.dataset.color !== 'w' && jewel5.dataset.color !== 'g') {
+                                    matchLength = 5;
+                                    endRow = row + 4;
+                                }
                             }
+                            
+                            //console.log(`Found VERTICAL ${matchLength}-jewel match at col ${col}, rows ${row}-${endRow}: ${color1.repeat(matchLength)}`);
+                            
+                            // Store vertical match for L-shape detection (don't process yet)
+                            verticalMatches.push({
+                                col: col,
+                                startRow: row,
+                                endRow: endRow,
+                                color: color1,
+                                length: matchLength
+                            });
                         }
                     }
                 }
             }
         }
         
-        console.log(`Total matches found: ${matches.length}`);
+        // Check for L-shaped matches (before processing regular matches)
+        if (allowBonusBoxes) {
+            horizontalMatches.forEach((horizontalMatch, hIndex) => {
+                verticalMatches.forEach((verticalMatch, vIndex) => {
+                    // Check for L-shape: vertical line intersects with horizontal line at one end
+                    let isLShape = false;
+                    let intersectionRow, intersectionCol;
+                    
+                    // Check if horizontal line extends from the top of vertical line
+                    if (horizontalMatch.row === verticalMatch.startRow && 
+                        horizontalMatch.startCol <= verticalMatch.col && 
+                        horizontalMatch.endCol >= verticalMatch.col) {
+                        intersectionRow = verticalMatch.startRow;
+                        intersectionCol = verticalMatch.col;
+                        isLShape = true;
+                    }
+                    // Check if horizontal line extends from the bottom of vertical line
+                    else if (horizontalMatch.row === verticalMatch.endRow && 
+                             horizontalMatch.startCol <= verticalMatch.col && 
+                             horizontalMatch.endCol >= verticalMatch.col) {
+                        intersectionRow = verticalMatch.endRow;
+                        intersectionCol = verticalMatch.col;
+                        isLShape = true;
+                    }
+                    // Check if vertical line extends from the left of horizontal line
+                    else if (verticalMatch.col === horizontalMatch.startCol && 
+                             verticalMatch.startRow <= horizontalMatch.row && 
+                             verticalMatch.endRow >= horizontalMatch.row) {
+                        intersectionRow = horizontalMatch.row;
+                        intersectionCol = horizontalMatch.startCol;
+                        isLShape = true;
+                    }
+                    // Check if vertical line extends from the right of horizontal line
+                    else if (verticalMatch.col === horizontalMatch.endCol && 
+                             verticalMatch.startRow <= horizontalMatch.row && 
+                             verticalMatch.endRow >= horizontalMatch.row) {
+                        intersectionRow = horizontalMatch.row;
+                        intersectionCol = horizontalMatch.endCol;
+                        isLShape = true;
+                    }
+                    
+                    if (isLShape) {
+                        console.log("L shape detected");
+                        const intersectionKey = `${intersectionRow}-${intersectionCol}`;
+                        
+                        // Check if this intersection point isn't already a bonus box
+                        const intersectionJewel = document.querySelector(`[data-row="${intersectionRow}"][data-col="${intersectionCol}"]`);
+                        if (intersectionJewel && intersectionJewel.dataset.bonusBox !== 'true') {
+                            console.log("Creating grey bonus box at intersection");
+                            
+                            // Follow the EXACT same steps as white bonus box creation:
+                            // 1. Add to bonusBoxes array
+                            bonusBoxes.push({ row: intersectionRow, col: intersectionCol, type: 'grey' });
+                            
+                            // 2. Mark as visited to prevent duplicate processing
+                            visited.add(intersectionKey);
+                            
+                            // 3. Return immediately to prevent regular match processing
+                            console.log("L-shape detected - returning early");
+                            return { matches: [], bonusBoxes };
+                        }
+                    }
+                });
+            });
+        }
         
-        // Final debug: Log all the matches that were found
-        console.log("All matches found:");
-        matches.forEach((match, index) => {
-            const element = document.querySelector(`[data-row="${match.row}"][data-col="${match.col}"]`);
-            if (element) {
-                console.log(`  Match ${index + 1}: [${match.row},${match.col}] = ${element.dataset.color}`);
+        // Process regular matches
+        horizontalMatches.forEach(horizontalMatch => {
+            if (horizontalMatch.length === 5 && allowBonusBoxes) {
+                // Handle 5-jewel match with white bonus box
+                const centerCol = horizontalMatch.startCol + 2;
+                const centerJewel = document.querySelector(`[data-row="${horizontalMatch.row}"][data-col="${centerCol}"]`);
+                
+                if (centerJewel && !visited.has(`${horizontalMatch.row}-${centerCol}`)) {
+                    bonusBoxes.push({ row: horizontalMatch.row, col: centerCol, type: 'white' });
+                    visited.add(`${horizontalMatch.row}-${centerCol}`);
+                }
+                
+                // Add all 5 jewels to matches EXCEPT the center (bonus box)
+                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
+                    const key = `${horizontalMatch.row}-${c}`;
+                    if (!visited.has(key) && c !== centerCol) {
+                        matches.push({ row: horizontalMatch.row, col: c });
+                        visited.add(key);
+                    }
+                }
+            } else {
+                // Regular 3, 4, or 5 jewel match (no bonus box)
+                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
+                    const key = `${horizontalMatch.row}-${c}`;
+                    if (!visited.has(key)) {
+                        matches.push({ row: horizontalMatch.row, col: c });
+                        visited.add(key);
+                    }
+                }
             }
         });
         
-        return matches;
+        verticalMatches.forEach(verticalMatch => {
+            if (verticalMatch.length === 5 && allowBonusBoxes) {
+                // Handle 5-jewel match with white bonus box
+                const centerRow = verticalMatch.startRow + 2;
+                const centerJewel = document.querySelector(`[data-row="${centerRow}"][data-col="${verticalMatch.col}"]`);
+                
+                if (centerJewel && !visited.has(`${centerRow}-${verticalMatch.col}`)) {
+                    bonusBoxes.push({ row: centerRow, col: verticalMatch.col, type: 'white' });
+                    visited.add(`${centerRow}-${verticalMatch.col}`);
+                }
+                
+                // Add all 5 jewels to matches EXCEPT the center (bonus box)
+                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
+                    const key = `${r}-${verticalMatch.col}`;
+                    if (!visited.has(key) && r !== centerRow) {
+                        matches.push({ row: r, col: verticalMatch.col });
+                        visited.add(key);
+                    }
+                }
+            } else {
+                // Regular 3, 4, or 5 jewel match (no bonus box)
+                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
+                    const key = `${r}-${verticalMatch.col}`;
+                    if (!visited.has(key)) {
+                        matches.push({ row: r, col: verticalMatch.col });
+                        visited.add(key);
+                    }
+                }
+            }
+        });
+        
+        return { matches, bonusBoxes };
     }
 
     animateSwap(row1, col1, row2, col2, callback) {
@@ -520,33 +922,77 @@ export class Scene {
         }
     }
 
-    processMatches() {
+    processMatches(bonusBoxesFromPrevious = []) {
+        //console.log("=== PROCESSING MATCHES ===");
+        //console.log(`Bonus boxes from previous: ${bonusBoxesFromPrevious.length}`);
+        
         // CRITICAL: Sync the grid before finding matches
         this.syncInternalGridFromDOM();
         
-        const matches = this.findMatches();
+        const { matches, bonusBoxes } = this.findMatches(false); // No bonus boxes in cascade matches
+        
+        //console.log(`Found ${matches.length} matches and ${bonusBoxes.length} bonus boxes`);
         
         if (matches.length === 0) {
+            //console.log("No matches found, ending process");
             this.isAnimating = false;
             return;
         }
         
         // Set animating to true when processing matches
         this.isAnimating = true;
+        //console.log("Set isAnimating = true for match processing");
         
         const baseScore = matches.length * 10;
         this.score += baseScore;
         this.updateScoreDisplay();
         this.showScorePopup(baseScore);
         
-        this.animateClearMatches(matches, () => {
-            this.handleBlockFallingAfterMatch(matches);
+        // Combine bonus boxes from current matches and previous ones
+        const allBonusBoxes = [...bonusBoxesFromPrevious, ...bonusBoxes];
+        
+        //console.log(`Processing ${matches.length} matches with ${allBonusBoxes.length} total bonus boxes`);
+        
+        this.animateClearMatches(matches, allBonusBoxes, () => {
+            this.handleBlockFallingAfterMatch(matches, allBonusBoxes);
         });
     }
 
-    animateClearMatches(matches, callback) {
+    animateClearMatches(matches, bonusBoxes, callback) {
         const elements = [];
+        const bonusBoxElements = [];
         
+        // First, handle bonus boxes - convert them to white or grey jewels
+        bonusBoxes.forEach(bonusBox => {
+
+            console.log("bonusBox1");
+
+            const element = document.querySelector(`[data-row="${bonusBox.row}"][data-col="${bonusBox.col}"]`);
+            if (element) {
+                console.log("bonusBox2");
+                //console.log(`Converting to ${bonusBox.type} bonus box: [${bonusBox.row},${bonusBox.col}]`);
+                bonusBoxElements.push(element);
+                
+                // Convert to appropriate color and flag as new bonus box
+                if (bonusBox.type === 'white') {
+                    element.style.backgroundColor = '#FFFFFF';
+                    element.dataset.color = 'w';
+                } else if (bonusBox.type === 'grey') {
+                    console.log("bonusBox3");
+                    element.style.backgroundColor = '#808080';
+                    element.dataset.color = 'g';
+                }
+                
+                element.dataset.bonusBox = 'true';
+                element.dataset.newBonusBox = 'true'; // Flag to prevent clearing
+                
+                // Don't add to elements to be cleared
+            } else {
+                //console.error(`ERROR: Could not find element for bonus box at [${bonusBox.row},${bonusBox.col}]`);
+            }
+        });
+        
+        // Handle regular matches
         matches.forEach(match => {
             const element = document.querySelector(`[data-row="${match.row}"][data-col="${match.col}"]`);
                         if (element) {
@@ -554,10 +1000,21 @@ export class Scene {
                 const row = element.dataset.row;
                 const col = element.dataset.col;
                 
-                console.log(`CLEARING BLOCK: [${row},${col}] = ${color} - Reason: Part of match #${matches.indexOf(match) + 1} of ${matches.length} total matches`);
+                // Skip if this is a new bonus box
+                if (element.dataset.newBonusBox === 'true') {
+                    //console.log(`Skipping new bonus box at [${row},${col}] - preventing clearing`);
+                    return;
+                }
+                
+                // Check if this element is a bonus box
+                if (element.dataset.bonusBox === 'true') {
+                    //console.error(`ERROR: Bonus box at [${row},${col}] is being cleared! This should not happen.`);
+                }
+                
+                //console.log(`CLEARING BLOCK: [${row},${col}] = ${color} - Reason: Part of match #${matches.indexOf(match) + 1} of ${matches.length} total matches`);
                 elements.push(element);
             } else {
-                console.error(`ERROR: Could not find element to clear at [${match.row},${match.col}]`);
+                //console.error(`ERROR: Could not find element to clear at [${match.row},${match.col}]`);
             }
         });
         
@@ -567,20 +1024,40 @@ export class Scene {
             element.dataset.void = 'true'; // Mark as void so it's not counted in sync
         });
         
-        // Update the grid
-        matches.forEach(match => {
-            this.grid[match.row][match.col] = -1;
-        });
-        
-        // Create a timeline for the spin and shrink animation
-        const tl = gsap.timeline({
-            onComplete: () => {
-                console.log("Match spin and shrink animation complete, proceeding to block falling...");
-            callback();
+        // Update the grid (only for cleared elements, not bonus boxes)
+        elements.forEach(element => {
+            const row = parseInt(element.dataset.row);
+            const col = parseInt(element.dataset.col);
+            if (row >= 0 && row < this.GRID_SIZE && col >= 0 && col < this.GRID_SIZE) {
+                this.grid[row][col] = -1;
             }
         });
         
-        // Spin and shrink animation - 0.25 seconds total
+        // Update grid for bonus boxes
+        bonusBoxElements.forEach(element => {
+            const row = parseInt(element.dataset.row);
+            const col = parseInt(element.dataset.col);
+            if (row >= 0 && row < this.GRID_SIZE && col >= 0 && col < this.GRID_SIZE) {
+                if (element.dataset.color === 'w') {
+                    this.grid[row][col] = 5; // White jewel index
+                } else if (element.dataset.color === 'g') {
+                    this.grid[row][col] = 6; // Grey jewel index
+                }
+            }
+        });
+        
+        // Create a timeline for the spin and shrink animation (only for cleared elements)
+        const tl = gsap.timeline({
+            onComplete: () => {
+                //console.log("Match spin and shrink animation complete, proceeding to bonus box falling...");
+                this.handleBonusBoxFalling(bonusBoxElements, () => {
+                    this.handleBlockFallingAfterMatch(matches, bonusBoxes);
+                });
+            }
+        });
+        
+        // Spin and shrink animation - 0.25 seconds total (only for cleared elements)
+        if (elements.length > 0) {
         tl.to(elements, {
             rotation: 360,
             scale: 0,
@@ -588,15 +1065,145 @@ export class Scene {
             ease: "power2.out",
             transformOrigin: "center center"
         }, 0); // Start immediately
+        }
         
-        console.log(`Started spin and shrink animation for ${elements.length} matched blocks`);
+        //console.log(`Started spin and shrink animation for ${elements.length} matched blocks`);
+        //console.log(`Created ${bonusBoxElements.length} bonus boxes`);
     }
     
-    handleBlockFallingAfterMatch(matches) {
+    handleBonusBoxFalling(bonusBoxElements, callback) {
+        if (bonusBoxElements.length === 0) {
+            //console.log("No bonus boxes to fall, proceeding to regular block falling...");
+            callback();
+            return;
+        }
+        
+        //console.log("=== BONUS BOX FALLING PHASE ===");
+        
+        const animations = [];
+        const gridUpdates = [];
+        
+        bonusBoxElements.forEach((bonusBoxElement, index) => {
+            // Safety check - ensure the element still exists
+            if (!bonusBoxElement || !bonusBoxElement.parentNode) {
+                //console.warn(`Bonus box element ${index} no longer exists, skipping...`);
+                return;
+            }
+            
+            const currentRow = parseInt(bonusBoxElement.dataset.row);
+            const currentCol = parseInt(bonusBoxElement.dataset.col);
+            
+            //console.log(`Processing bonus box ${index + 1}/${bonusBoxElements.length} at [${currentRow},${currentCol}]`);
+            
+            // Calculate how many empty spaces are below this bonus box
+            let spacesToFall = 0;
+            for (let checkRow = currentRow + 1; checkRow < this.GRID_SIZE; checkRow++) {
+                const blockAtCheckRow = document.querySelector(`[data-row="${checkRow}"][data-col="${currentCol}"]`);
+                if (!blockAtCheckRow || blockAtCheckRow.dataset.cleared === 'true' || blockAtCheckRow.dataset.void === 'true') {
+                    spacesToFall++;
+                } else {
+                    //console.log(`Bonus box at [${currentRow},${currentCol}] found obstacle at [${checkRow},${currentCol}]: color=${blockAtCheckRow.dataset.color}, cleared=${blockAtCheckRow.dataset.cleared}, void=${blockAtCheckRow.dataset.void}, bonusBox=${blockAtCheckRow.dataset.bonusBox}`);
+                }
+            }
+            
+            //console.log(`Bonus box at [${currentRow},${currentCol}] calculated ${spacesToFall} spaces to fall`);
+            
+            if (spacesToFall > 0) {
+                //console.log(`Bonus box at [${currentRow},${currentCol}] needs to fall ${spacesToFall} spaces`);
+                
+                // Calculate the target position
+                const targetRow = currentRow + spacesToFall;
+                const currentTop = parseInt(bonusBoxElement.style.top) || 0;
+                const moveDistance = spacesToFall * (this.jewelSize + this.jewelGap);
+                const targetTop = currentTop + moveDistance;
+                
+                //console.log(`Bonus box at [${currentRow},${currentCol}] moving from top=${currentTop} to top=${targetTop} (distance=${moveDistance})`);
+                
+                // Store the grid update for later
+                gridUpdates.push({
+                    element: bonusBoxElement,
+                    oldRow: currentRow,
+                    newRow: targetRow,
+                    col: currentCol
+                });
+                
+                // Animate the bonus box falling
+                const animation = gsap.to(bonusBoxElement, {
+                    top: targetTop,
+                    duration: 0.3,
+                    ease: "sine.out"
+                });
+                
+                animations.push(animation);
+            } else {
+                //console.log(`Bonus box at [${currentRow},${currentCol}] doesn't need to fall`);
+            }
+        });
+        
+        // Wait for all bonus box animations to complete
+        if (animations.length > 0) {
+            Promise.all(animations.map(anim => new Promise(resolve => {
+                anim.eventCallback("onComplete", resolve);
+            }))).then(() => {
+                // Update the data attributes and grid after animations complete
+                gridUpdates.forEach(update => {
+                    update.element.dataset.row = update.newRow;
+                    
+                    // Update the grid - preserve the original bonus box type
+                    if (update.newRow >= 0 && update.newRow < this.GRID_SIZE && update.col >= 0 && update.col < this.GRID_SIZE) {
+                        // Determine the correct grid value based on the bonus box color
+                        let gridValue;
+                        if (update.element.dataset.color === 'g') {
+                            gridValue = 6; // Grey jewel index
+                        } else {
+                            gridValue = 5; // White jewel index
+                        }
+                        this.grid[update.newRow][update.col] = gridValue;
+                        
+                        // Clear the old position in the grid
+                        if (update.oldRow >= 0 && update.oldRow < this.GRID_SIZE) {
+                            this.grid[update.oldRow][update.col] = -1;
+                        }
+                    }
+                });
+                
+                //console.log("Bonus box falling complete, proceeding to regular block falling...");
+                callback();
+            });
+        } else {
+            //console.log("No bonus boxes needed to fall, proceeding to regular block falling...");
+            callback();
+        }
+    }
+    
+    handleBlockFallingAfterMatch(matches, bonusBoxes) {
+        //console.log("=== HANDLING BLOCK FALLING AFTER MATCH ===");
+        //console.log(`Matches: ${matches.length}, Bonus boxes: ${bonusBoxes.length}`);
+        
+        // Log bonus box positions before processing
+        bonusBoxes.forEach((bonusBox, index) => {
+            const element = document.querySelector(`[data-row="${bonusBox.row}"][data-col="${bonusBox.col}"]`);
+            if (element) {
+                //console.log(`Bonus box ${index}: [${bonusBox.row},${bonusBox.col}] - color: ${element.dataset.color}, bonusBox: ${element.dataset.bonusBox}`);
+            } else {
+                //console.error(`Bonus box ${index}: [${bonusBox.row},${bonusBox.col}] - ELEMENT NOT FOUND!`);
+            }
+        });
+        
         const clearedPerColumn = new Array(this.GRID_SIZE).fill(0);
+        
+        // Count cleared blocks per column from matches
         matches.forEach(match => {
             clearedPerColumn[match.col]++;
         });
+        
+        // Subtract bonus boxes that were created (they take up cleared spaces)
+        bonusBoxes.forEach(bonusBox => {
+            clearedPerColumn[bonusBox.col]--;
+        });
+        
+        // Create a snapshot of the current grid state to ensure consistent calculations
+        const gridSnapshot = this.createGridSnapshot();
         
         const blocksToFall = [];
         
@@ -605,7 +1212,8 @@ export class Scene {
                 for (let row = 0; row < this.GRID_SIZE; row++) {
                     const blockElement = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
                     if (blockElement && !blockElement.dataset.isNew && blockElement.dataset.cleared !== 'true' && blockElement.dataset.void !== 'true') {
-                        const spacesToFall = this.calculateSpacesToFall(row, col, clearedPerColumn[col]);
+                        // Allow both regular blocks AND existing bonus boxes to fall
+                        const spacesToFall = this.calculateSpacesToFallFromSnapshot(row, col, gridSnapshot);
                         if (spacesToFall > 0) {
                             blocksToFall.push({
                                 element: blockElement,
@@ -631,8 +1239,8 @@ export class Scene {
         
         const allBlocksToMove = [...blocksToFall, ...newBlocks];
         
-        // Console log for missing blocks below for each column
-        console.log("=== MISSING BLOCKS PER COLUMN ===");
+        // //console log for missing blocks below for each column
+        //console.log("=== MISSING BLOCKS PER COLUMN ===");
         for (let col = 0; col < this.GRID_SIZE; col++) {
             let missingInColumn = 0;
             for (let row = 0; row < this.GRID_SIZE; row++) {
@@ -641,32 +1249,65 @@ export class Scene {
                     missingInColumn++;
                 }
             }
-            console.log(`Column ${col}: ${missingInColumn} missing blocks`);
+            //console.log(`Column ${col}: ${missingInColumn} missing blocks`);
         }
         
-        // Console log for all blocks to fall and new blocks
-        console.log("=== BLOCKS TO FALL ===");
+        // //console log for all blocks to fall and new blocks
+        //console.log("=== BLOCKS TO FALL ===");
         blocksToFall.forEach((block, index) => {
-            console.log(`Falling block ${index}: from [${block.currentRow},${block.col}] to [${block.targetRow},${block.col}] (${block.spacesToFall} spaces)`);
+            //console.log(`Falling block ${index}: from [${block.currentRow},${block.col}] to [${block.targetRow},${block.col}] (${block.spacesToFall} spaces)`);
         });
         
-        console.log("=== NEW BLOCKS ===");
+        //console.log("=== NEW BLOCKS ===");
         newBlocks.forEach((block, index) => {
-            console.log(`New block ${index}: column ${block.col}, target row ${block.targetRow}, stack index ${block.stackIndex}`);
+            //console.log(`New block ${index}: column ${block.col}, target row ${block.targetRow}, stack index ${block.stackIndex}`);
         });
         
-        console.log("=== STARTING ANIMATION ===");
+        //console.log("=== STARTING ANIMATION ===");
         this.isAnimating = true; // Set animating to true before starting block falling animation
         this.animateAllBlocksToFinalPositions(allBlocksToMove);
+    }
+    
+    createGridSnapshot() {
+        // Create a snapshot of the current grid state to ensure consistent calculations
+        const snapshot = [];
+        for (let row = 0; row < this.GRID_SIZE; row++) {
+            snapshot[row] = [];
+            for (let col = 0; col < this.GRID_SIZE; col++) {
+                const blockElement = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (blockElement && blockElement.dataset.cleared !== 'true' && blockElement.dataset.void !== 'true') {
+                    snapshot[row][col] = true; // Block exists and is solid
+                } else {
+                    snapshot[row][col] = false; // No block or block is cleared/void
+                }
+            }
+        }
+        return snapshot;
+    }
+    
+    calculateSpacesToFallFromSnapshot(row, col, gridSnapshot) {
+        // Calculate spaces to fall using a consistent grid snapshot
+        let spacesToFall = 0;
+        for (let checkRow = row + 1; checkRow < this.GRID_SIZE; checkRow++) {
+            if (!gridSnapshot[checkRow] || !gridSnapshot[checkRow][col]) {
+                // Space is empty (no block or block is cleared/void)
+                spacesToFall++;
+            }
+            // If gridSnapshot[checkRow][col] is true, there's a solid block - stop falling
+        }
+        return spacesToFall;
     }
     
     calculateSpacesToFall(row, col, clearedInColumn) {
         let spacesToFall = 0;
         for (let checkRow = row + 1; checkRow < this.GRID_SIZE; checkRow++) {
             const blockAtCheckRow = document.querySelector(`[data-row="${checkRow}"][data-col="${col}"]`);
-            if (!blockAtCheckRow || blockAtCheckRow.dataset.cleared === 'true') {
+            // A space is empty if: no block exists, block is cleared, block is void, OR block is a bonus box that was cleared
+            if (!blockAtCheckRow || blockAtCheckRow.dataset.cleared === 'true' || blockAtCheckRow.dataset.void === 'true') {
                 spacesToFall++;
             }
+            // Note: Bonus boxes (both white 'w' and grey 'g') that are NOT cleared are treated as filled spaces
+            // and will prevent blocks from falling through them
         }
         return spacesToFall;
     }
@@ -747,20 +1388,20 @@ export class Scene {
                 let missingBlocksBelow = 0;
                 const currentRow = parseInt(block.element.dataset.row) || 0;
                 
-                console.log(`Calculating missing blocks for block at row ${currentRow}, col ${col}`);
+                //console.log(`Calculating missing blocks for block at row ${currentRow}, col ${col}`);
                 
                 for (let row = currentRow + 1; row < this.GRID_SIZE; row++) {
                     const blockAtRow = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
                     // Only count as missing if there's no block OR if the block is cleared/void
                     if (!blockAtRow || blockAtRow.dataset.cleared === 'true' || blockAtRow.dataset.void === 'true') {
                         missingBlocksBelow++;
-                        // console.log(`Row ${row} is missing (cleared: ${blockAtRow?.dataset.cleared}, void: ${blockAtRow?.dataset.void})`);
+                        // //console.log(`Row ${row} is missing (cleared: ${blockAtRow?.dataset.cleared}, void: ${blockAtRow?.dataset.void})`);
                     } else {
-                        // console.log(`Row ${row} has block: ${blockAtRow.dataset.color}`);
+                        // //console.log(`Row ${row} has block: ${blockAtRow.dataset.color}`);
                     }
                 }
                 
-                console.log(`Block at [${currentRow},${col}] needs to fall ${missingBlocksBelow} spaces`);
+                //console.log(`Block at [${currentRow},${col}] needs to fall ${missingBlocksBelow} spaces`);
                 
                 // 3. Move the jewel down by jewel height * number of blocks missing
                 const moveDistance = missingBlocksBelow * (this.jewelSize + this.jewelGap);
@@ -792,7 +1433,7 @@ export class Scene {
             allJewels.forEach(jewel => {
                 // Remove void/cleared jewels from DOM completely
                 if (jewel.dataset.void === 'true' || jewel.dataset.cleared === 'true') {
-                    console.log(`Destroying removed jewel at [${jewel.dataset.row},${jewel.dataset.col}]`);
+                    //console.log(`Destroying removed jewel at [${jewel.dataset.row},${jewel.dataset.col}]`);
                     jewel.remove();
                     return;
                 }
@@ -827,17 +1468,17 @@ export class Scene {
             // this.createGridOverlay(); // Debug grid disabled
             
             // COMPLETE CLEANUP AND VERIFICATION
-            console.log("=== FINAL CLEANUP ===");
+            //console.log("=== FINAL CLEANUP ===");
             
             // Count all jewels to verify we have exactly 81
             const finalJewels = document.querySelectorAll('.jewel');
-            console.log(`Total jewels: ${finalJewels.length} (should be 81)`);
+            //console.log(`Total jewels: ${finalJewels.length} (should be 81)`);
             
             if (finalJewels.length !== 81) {
-                console.error(`ERROR: Expected 81 jewels, found ${finalJewels.length}`);
+                //console.error(`ERROR: Expected 81 jewels, found ${finalJewels.length}`);
                 
                 // Debug: Show what jewels we have
-                console.log("=== JEWEL INVENTORY ===");
+                //console.log("=== JEWEL INVENTORY ===");
                 finalJewels.forEach((jewel, index) => {
                     const row = jewel.dataset.row;
                     const col = jewel.dataset.col;
@@ -846,7 +1487,7 @@ export class Scene {
                     const isNew = jewel.dataset.isNew;
                     const voided = jewel.dataset.void;
                     
-                    console.log(`Jewel ${index}: [${row},${col}] = ${color} (cleared: ${cleared}, new: ${isNew}, void: ${voided})`);
+                    //console.log(`Jewel ${index}: [${row},${col}] = ${color} (cleared: ${cleared}, new: ${isNew}, void: ${voided})`);
                 });
             }
             
@@ -857,16 +1498,27 @@ export class Scene {
                 const color = jewel.dataset.color;
                 
                 if (row < 0 || row >= 9 || col < 0 || col >= 9) {
-                    console.error(`Jewel ${index}: Invalid position [${row},${col}]`);
+                    //console.error(`Jewel ${index}: Invalid position [${row},${col}]`);
                 }
                 if (!color) {
-                    console.error(`Jewel ${index}: Missing color`);
+                    //console.error(`Jewel ${index}: Missing color`);
                 }
             });
             
             // CRITICAL: Check for cascade matches after blocks have fallen
-            console.log("=== CHECKING FOR CASCADE MATCHES ===");
+            //console.log("=== CHECKING FOR CASCADE MATCHES ===");
+            
+            // Log bonus boxes before cascade checking
+            const bonusBoxesBeforeCascade = document.querySelectorAll('.jewel[data-bonus-box="true"]');
+            //console.log(`Bonus boxes before cascade check: ${bonusBoxesBeforeCascade.length}`);
+            bonusBoxesBeforeCascade.forEach((bonusBox, index) => {
+                //console.log(`Bonus box ${index}: [${bonusBox.dataset.row},${bonusBox.dataset.col}] - color: ${bonusBox.dataset.color}`);
+            });
+            
             this.checkForCascadeMatches();
+            
+            // Reset animation flag to allow new moves
+            this.isAnimating = false;
         });
     }
     
@@ -942,13 +1594,13 @@ export class Scene {
         
         // Cycle through ALL blocks in the DOM (excluding void/eliminated ones)
         const allJewels = document.querySelectorAll('.jewel');
-        console.log(`Found ${allJewels.length} total jewels in DOM`);
+        //console.log(`Found ${allJewels.length} total jewels in DOM`);
         
         let validJewels = 0;
         allJewels.forEach((jewelElement, index) => {
             // Skip void/eliminated jewels
             if (jewelElement.dataset.void === 'true' || jewelElement.dataset.cleared === 'true') {
-                console.log(`Skipping void/cleared jewel ${index}`);
+                //console.log(`Skipping void/cleared jewel ${index}`);
                 return;
             }
             
@@ -956,7 +1608,7 @@ export class Scene {
             const col = parseInt(jewelElement.dataset.col);
             const colorLetter = jewelElement.dataset.color;
             
-            // console.log(`Valid jewel ${index}: [${row},${col}] = ${colorLetter}`);
+            // //console.log(`Valid jewel ${index}: [${row},${col}] = ${colorLetter}`);
             validJewels++;
             
             if (row >= 0 && row < this.GRID_SIZE && col >= 0 && col < this.GRID_SIZE) {
@@ -964,50 +1616,191 @@ export class Scene {
                 
                 if (jewelTypeIndex !== -1) {
                     this.grid[row][col] = jewelTypeIndex;
-                    // console.log(`Set grid[${row}][${col}] = ${jewelTypeIndex} (${colorLetter})`);
+                    // //console.log(`Set grid[${row}][${col}] = ${jewelTypeIndex} (${colorLetter})`);
                 } else {
-                    // console.error(`Invalid color letter: ${colorLetter}`);
+                    // //console.error(`Invalid color letter: ${colorLetter}`);
                 }
             } else {
-                // console.error(`Invalid position: [${row},${col}]`);
+                // //console.error(`Invalid position: [${row},${col}]`);
             }
         });
         
-        // console.log(`Processed ${validJewels} valid jewels`);
+        // //console.log(`Processed ${validJewels} valid jewels`);
         
-        console.log("=== FINAL GRID STATE ===");
+        //console.log("=== FINAL GRID STATE ===");
         for (let row = 0; row < this.GRID_SIZE; row++) {
             let rowStr = "";
             for (let col = 0; col < this.GRID_SIZE; col++) {
                 rowStr += this.grid[row][col] + " ";
             }
-            console.log(`Row ${row}: ${rowStr}`);
+            //console.log(`Row ${row}: ${rowStr}`);
         }
     }
 
     checkForCascadeMatches() {
-        console.log("=== CHECKING FOR CASCADE MATCHES ===");
+        //console.log("=== CHECKING FOR CASCADE MATCHES ===");
         
-        // Sync the grid first to ensure we have the latest state
-        this.syncInternalGridFromDOM();
+        // Log bonus boxes before finding matches
+        const bonusBoxesBeforeMatches = document.querySelectorAll('.jewel[data-bonus-box="true"]');
+        //console.log(`Bonus boxes before finding matches: ${bonusBoxesBeforeMatches.length}`);
+        bonusBoxesBeforeMatches.forEach((bonusBox, index) => {
+            //console.log(`Bonus box ${index}: [${bonusBox.dataset.row},${bonusBox.dataset.col}] - color: ${bonusBox.dataset.color}`);
+        });
         
-        // Find any new matches
-        const newMatches = this.findMatches();
+        const { matches, bonusBoxes } = this.findMatches(false); // No bonus boxes in cascade matches
         
-        if (newMatches.length > 0) {
-            console.log(`Found ${newMatches.length} cascade matches! Processing...`);
-            
-            // Process these new matches
-            this.processMatches();
+        //console.log(`Cascade matches found: ${matches.length}`);
+        matches.forEach((match, index) => {
+            const element = document.querySelector(`[data-row="${match.row}"][data-col="${match.col}"]`);
+            if (element) {
+                //console.log(`Cascade match ${index}: [${match.row},${match.col}] = ${element.dataset.color} (bonusBox: ${element.dataset.bonusBox})`);
+            }
+        });
+        
+        if (matches.length > 0) {
+            //console.log(`Found ${matches.length} cascade matches! Processing...`);
+            this.processMatches(bonusBoxes);
         } else {
-            console.log("No cascade matches found. Ready for next turn.");
-            
-            // Clear all arrays and reset for fresh start
-            this.isAnimating = false;
-            console.log("=== READY FOR NEXT TURN ===");
+            //console.log("No cascade matches found. Running repair and ending turn.");
+            // Run repair function at the end of turn
+            this.repairGrid();
         }
     }
     
+    repairGrid() {
+        console.log("=== RUNNING GRID REPAIR ===");
+        
+        // Check for overlapping blocks
+        const overlappingBlocks = this.findOverlappingBlocks();
+        if (overlappingBlocks.length > 0) {
+            console.log(`Found ${overlappingBlocks.length} overlapping blocks, making them semi-transparent...`);
+            this.makeOverlappingBlocksSemiTransparent(overlappingBlocks);
+            this.gamePaused = true;
+            clearInterval(this.timerInterval);
+            return; // Don't continue with repair
+        }
+        
+        // Check for empty spaces and fill them
+        const emptySpaces = this.findEmptySpaces();
+        if (emptySpaces.length > 0) {
+            console.log(`Found ${emptySpaces.length} empty spaces, logging instead of creating new blocks...`);
+            this.gamePaused = true;
+            clearInterval(this.timerInterval);
+            return; // Don't continue with repair
+        } else {
+            // No empty spaces to fill, finish repair immediately
+            this.finishRepair();
+        }
+    }
+    
+    findOverlappingBlocks() {
+        const overlappingBlocks = [];
+        const positions = new Map(); // key: "row-col", value: array of elements at that position
+        
+        // Find all blocks and group them by position
+        const allBlocks = document.querySelectorAll('.jewel');
+        allBlocks.forEach(block => {
+            const row = parseInt(block.dataset.row);
+            const col = parseInt(block.dataset.col);
+            const key = `${row}-${col}`;
+            
+            if (!positions.has(key)) {
+                positions.set(key, []);
+            }
+            positions.get(key).push(block);
+        });
+        
+        // Find positions with multiple blocks
+        positions.forEach((blocks, position) => {
+            if (blocks.length > 1) {
+                overlappingBlocks.push({
+                    position: position,
+                    blocks: blocks
+                });
+            }
+        });
+        
+        return overlappingBlocks;
+    }
+    
+    makeOverlappingBlocksSemiTransparent(overlappingBlocks) {
+        overlappingBlocks.forEach(overlap => {
+            const blocks = overlap.blocks;
+            console.log(`Making ${blocks.length} overlapping blocks at position ${overlap.position} semi-transparent`);
+            
+            // Make all overlapping blocks semi-transparent
+            blocks.forEach(block => {
+                block.style.opacity = '0.5';
+                block.style.border = '2px solid red'; // Add red border to highlight the overlap
+            });
+        });
+    }
+    
+    findEmptySpaces() {
+        const emptySpaces = [];
+        
+        for (let row = 0; row < this.GRID_SIZE; row++) {
+            for (let col = 0; col < this.GRID_SIZE; col++) {
+                const blockAtPosition = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (!blockAtPosition || blockAtPosition.dataset.cleared === 'true' || blockAtPosition.dataset.void === 'true') {
+                    // Don't count bonus boxes as empty spaces
+                    if (blockAtPosition && blockAtPosition.dataset.bonusBox === 'true') {
+                        continue;
+                    }
+                    emptySpaces.push({ row, col });
+                }
+            }
+        }
+        
+        return emptySpaces;
+    }
+    
+    fillEmptySpaces(emptySpaces) {
+        const newBlocks = [];
+        
+        emptySpaces.forEach(emptySpace => {
+            const newJewelType = Math.floor(Math.random() * this.JEWEL_TYPES);
+            const newBlock = this.createNewBlock(emptySpace.col, newJewelType, 0);
+            newBlocks.push(newBlock);
+        });
+        
+        if (newBlocks.length > 0) {
+            //console.log(`Created ${newBlocks.length} new blocks to fill empty spaces`);
+            
+            // Animate the new blocks appearing
+            newBlocks.forEach(block => {
+                block.element.style.scale = '0';
+                gsap.to(block.element, {
+                    scale: 1,
+                    duration: 0.3,
+                    ease: "back.out(1.7)"
+                });
+            });
+            
+            // Update the grid after a short delay to ensure animations complete
+            setTimeout(() => {
+                this.updateGridFromBlockPositions(newBlocks);
+                this.finishRepair();
+            }, 350);
+        } else {
+            // No new blocks needed, finish repair immediately
+            this.finishRepair();
+        }
+    }
+    
+    finishRepair() {
+        //console.log("=== REPAIR COMPLETE - READY FOR NEXT TURN ===");
+        
+        // Clear the newBonusBox flag from all bonus boxes
+        const allBonusBoxes = document.querySelectorAll('.jewel[data-bonus-box="true"]');
+        allBonusBoxes.forEach(bonusBox => {
+            delete bonusBox.dataset.newBonusBox;
+            //console.log(`Cleared newBonusBox flag from bonus box at [${bonusBox.dataset.row},${bonusBox.dataset.col}]`);
+        });
+        
+        this.isAnimating = false;
+    }
+
     showScorePopup(points) {
         const popup = document.getElementById('scorePopup');
         if (popup) {
@@ -1124,9 +1917,9 @@ export class Scene {
     }
 
     logAllBlocks() {
-        console.log("=== ALL BLOCKS IN DOM ===");
+        //console.log("=== ALL BLOCKS IN DOM ===");
         const allJewels = document.querySelectorAll('.jewel');
-        console.log(`Total blocks: ${allJewels.length}`);
+        //console.log(`Total blocks: ${allJewels.length}`);
         
         allJewels.forEach((jewel, index) => {
             // const row = jewel.dataset.row;
@@ -1137,14 +1930,14 @@ export class Scene {
             // const voided = jewel.dataset.void;
             // const stackIndex = jewel.dataset.stackIndex;
             
-            // console.log(`Block ${index}: [${row},${col}] = ${color} (cleared: ${cleared}, new: ${isNew}, void: ${voided}, stackIndex: ${stackIndex})`);
-            console.log(index, jewel);
+            // //console.log(`Block ${index}: [${row},${col}] = ${color} (cleared: ${cleared}, new: ${isNew}, void: ${voided}, stackIndex: ${stackIndex})`);
+            //console.log(index, jewel);
         });
     }
 
     toggleDebugNumbers() {
         this.debugMode = !this.debugMode;
-        console.log(`Debug numbers ${this.debugMode ? 'enabled' : 'disabled'}`);
+        //console.log(`Debug numbers ${this.debugMode ? 'enabled' : 'disabled'}`);
         
         const allJewels = document.querySelectorAll('.jewel');
         allJewels.forEach(jewel => {
@@ -1160,18 +1953,20 @@ export class Scene {
     }
 
     toggleGridOverlay() {
-        this.gridOverlayVisible = !this.gridOverlayVisible;
-        console.log(`Grid overlay ${this.gridOverlayVisible ? 'enabled' : 'disabled'}`);
-        
-        if (this.gridOverlayVisible) {
-            this.createGridOverlay();
+        const existingOverlay = document.getElementById('gridOverlay');
+        if (existingOverlay) {
+            existingOverlay.remove();
         } else {
-            const existingOverlay = document.getElementById('gridOverlay');
-            if (existingOverlay) {
-                existingOverlay.remove();
-            }
+            this.createGridOverlay();
         }
     }
+    
+    toggleMask() {
+        // Mask functionality disabled for now
+        console.log("Mask toggle disabled");
+    }
+
+
 
     update(){
         if(this.action==="set up"){
