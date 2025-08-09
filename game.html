@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Jewel Match</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/main.css">
+
+    <!--meta---------------------------------------------------------------------------------------------------------- -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-K8LPL4T9LY");
+    </script>
+
+    <script>
+      window.addEventListener("load", (event) => {
+        window.parent.postMessage(
+          JSON.stringify({
+            type: "GameLoaded",
+          }),
+          "*"
+        );
+      });
+
+      // Wait for DOM to be fully loaded
+      document.addEventListener('DOMContentLoaded', function() {
+        // Game logic is now handled in scene.js
+      });
+    </script>
+
+</head>
+
+<body>
+
+    <div id="hideMe"><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br></div>
+
+    <div id="feedback">Jewel Match - Drag jewels to swap adjacent pieces</div>
+
+    <!-- Additional UI Elements -->
+    <div class="ui" id="levelDiv">LEVEL: 1</div>
+    <div class="ui" id="scoreDiv"></div>
+    <div class="ui" id="timerDiv">2:30</div>
+    <div class="ui" id="frameCounter">FPS: 0</div>
+    <div id="scorePopup">+100</div>
+
+   
+    <div id="topDiv">
+    </div>
+
+    <div id="bonusDiv">
+    </div>
+
+    <!-- Start Menu -->
+    <div id="startMenu">
+        <div id="startMenuContainer">
+            <img id="splashImage" src="src/images/splashImage.png" alt="Splash">
+            <div id="playButton">PLAY</div>
+            <div id="instructionsButton">INSTRUCTIONS</div>
+        </div>
+    </div>
+
+    <!-- Instructions Overlay -->
+    <div id="instructionsOverlay" style="display: none;">
+        <div id="instructionsContainer">
+            <div id="instructionsTitle">INSTRUCTIONS</div>
+            
+            <div id="instructionsText">
+                <div class="instructionLine">Match 3 or more jewels of the same color<br>by swapping adjacent jewels</div>
+
+                <div class="instructionDivider"></div>
+
+                <div class="instructionLine">Drag a jewel to an adjacent position to swap them</div>
+                <div class="instructionDivider"></div>
+                <div class="instructionLine"><b>SCORING:</b></div>
+                <div class="instructionLine">3 jewels = 30 points<br>4 jewels = 48 points<br>5+ jewels = 75+ points</div>
+                <div class="instructionDivider"></div>
+                <div class="instructionLine">Create cascading matches for bonus points</div>
+                <div class="instructionDivider"></div>
+                <div class="instructionLine">You have 2 minutes to get the highest score!</div>
+            </div>
+            
+            <div id="closeInstructionsButton">CLOSE</div>
+        </div>
+    </div>
+
+    <!-- Final Score Screen -->
+    <div id="finalDiv">
+        <div id="scoreDiv1">SCORE</div>
+        
+        <div id="scoreBreakdown">
+            <div class="scoreDetail">
+                <div class="scoreItem">
+                    <span class="scoreLabel">21</span>
+                    <div class="progressBar">
+                        <div class="progressFill" id="progress21"></div>
+                    </div>
+                    <div class="scoreValueContainer">
+                        <span class="graphScoreValue" id="score21">13</span>
+                    </div>
+                </div>
+                <div class="scoreItem">
+                    <span class="scoreLabel">20</span>
+                    <div class="progressBar">
+                        <div class="progressFill" id="progress20"></div>
+                    </div>
+                    <div class="scoreValueContainer">
+                        <span class="graphScoreValue" id="score20">0</span>
+                    </div>
+                </div>
+                <div class="scoreItem">
+                    <span class="scoreLabel">19</span>
+                    <div class="progressBar">
+                        <div class="progressFill" id="progress19"></div>
+                    </div>
+                    <div class="scoreValueContainer">
+                        <span class="graphScoreValue" id="score19">0</span>
+                    </div>
+                </div>
+                <div class="scoreItem">
+                    <span class="scoreLabel">18</span>
+                    <div class="progressBar">
+                        <div class="progressFill" id="progress18"></div>
+                    </div>
+                    <div class="scoreValueContainer">
+                        <span class="graphScoreValue" id="score18">0</span>
+                    </div>
+                </div>
+                <div class="scoreItem">
+                    <span class="scoreLabel">17</span>
+                    <div class="progressBar">
+                        <div class="progressFill" id="progress17"></div>
+                    </div>
+                    <div class="scoreValueContainer">
+                        <span class="graphScoreValue" id="score17">0</span>
+                    </div>
+                </div>
+                <div class="scoreItem">
+                    <span class="scoreLabel">16</span>
+                    <div class="progressBar">
+                        <div class="progressFill" id="progress16"></div>
+                    </div>
+                    <div class="scoreValueContainer">
+                        <span class="graphScoreValue" id="score16">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="scoreDetail">
+                <span class="bottomScoreLabel">CARD POINTS:</span>
+                <span class="scoreValue" id="cardPoints">0</span>
+            </div>
+            <div class="scoreDetail">
+                <span class="bottomScoreLabel">MULT BONUS:</span>
+                <span class="scoreValue" id="multBonus">0</span>
+            </div>
+            <div class="scoreDetail">
+                <span class="bottomScoreLabel bustText">BUSTS:</span>
+                <span class="scoreValue bustValue" id="bustCount">0</span>
+            </div>
+        </div>
+        <div id="scoreDiv2">0</div>
+    </div>
+
+    <!-- loading -->
+
+    <div id="loadingImage"></div>
+    <div id="loadingBack"></div>
+
+    
+
+    <!-- Fader elements -->
+    <div id="fader"></div>
+    <div id="faderBlack"></div>
+
+</body>
+</html>
