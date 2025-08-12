@@ -6,15 +6,115 @@ export class Scene {
         this.e = e;
     }
 
+    // Helper function to set isAnimating to true and change grid border to yellow
+    setAnimatingTrue() {
+        this.isAnimating = true;
+        this.updateGridBorderColor(true);
+    }
+
+    // Helper function to set isAnimating to false and change grid border to grey
+    setAnimatingFalse() {
+        this.isAnimating = false;
+        this.updateGridBorderColor(false);
+    }
+
+    // Helper function to update grid border color based on animation state
+    updateGridBorderColor(isAnimating) {
+        const gridElement = document.getElementById('jewelGrid');
+        if (gridElement) {
+            if (isAnimating) {
+                // Grey border when animating (busy)
+                gridElement.style.border = '3px solid #808080';
+                gridElement.style.transition = 'border-color 0.2s ease';
+            } else {
+                // Yellow border when not animating (ready for input)
+                gridElement.style.border = '3px solid #FFD700';
+            }
+        }
+    }
+
+    // Create subtle glow effects that fly away when matches are made
+    createMatchGlowEffects() {
+        const gridElement = document.getElementById('jewelGrid');
+        if (!gridElement) return;
+        
+        // Get all jewels that are part of the current match
+        const matchedJewels = document.querySelectorAll('.jewel[data-cleared="true"], .jewel[data-void="true"]');
+        
+        console.log('createMatchGlowEffects called');
+        console.log('Found matched jewels:', matchedJewels.length);
+        console.log('Matched jewels:', matchedJewels);
+        
+        if (matchedJewels.length === 0) {
+            console.log('No matched jewels found, returning early');
+            return;
+        }
+        
+        // Create 4-5 small radial gradient glows
+        const glowCount = Math.floor(Math.random() * 2) + 4; // 4 or 5 glows
+        
+        for (let i = 0; i < glowCount; i++) {
+            // Pick a random matched jewel position
+            const randomJewel = matchedJewels[Math.floor(Math.random() * matchedJewels.length)];
+            const jewelRect = randomJewel.getBoundingClientRect();
+            const startX = jewelRect.left + jewelRect.width / 2;
+            const startY = jewelRect.top + jewelRect.height / 2;
+            
+            // Random angle for flight direction
+            const angle = Math.random() * Math.PI * 2;
+            const flightDistance = 30 + Math.random() * 20; // Reduced distance (was 100)
+            
+            // Create glow element
+            const glow = document.createElement('div');
+            glow.style.position = 'fixed';
+            glow.style.left = startX + 'px';
+            glow.style.top = startY + 'px';
+            glow.style.width = '8px';
+            glow.style.height = '8px';
+            glow.style.borderRadius = '50%';
+            glow.style.background = 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,0,0.6) 50%, transparent 100%)';
+            glow.style.pointerEvents = 'none';
+            glow.style.zIndex = '9998';
+            glow.style.transform = 'translate(-50%, -50%)';
+            
+            document.body.appendChild(glow);
+            
+            // Animate the glow flying away
+            const endX = startX + (Math.cos(angle) * flightDistance);
+            const endY = startY + (Math.sin(angle) * flightDistance);
+            
+            // Use CSS transitions for mobile compatibility
+            glow.style.transition = 'all 1.5s ease-out';
+            
+            // Trigger animation on next frame for mobile compatibility
+            requestAnimationFrame(() => {
+                glow.style.left = endX + 'px';
+                glow.style.top = endY + 'px';
+                glow.style.opacity = '0';
+                glow.style.transform = 'translate(-50%, -50%) scale(0.5)';
+            });
+            
+            // Remove the glow element after animation
+            setTimeout(() => {
+                if (glow.parentNode) {
+                    glow.parentNode.removeChild(glow);
+                }
+            }, 1500);
+        }
+    }
+
     buildScene() {
         this.action = "set up";
 
         // Game configuration
-        this.GRID_SIZE = 9;
+        this.GRID_SIZE = 8;
         this.JEWEL_TYPES = 5; // Configurable number of jewel types (excluding bonus boxes)
         this.grid = [];
-        this.isAnimating = false;
+        this.setAnimatingFalse();
         this.score = 0;
+        this.scoreMultiplier = 1;
+        this.savedMultiplier = 1;
+        this.maxMultiplier = 5;
         this.timeLeft = 120;
         this.gameStarted = false;
         this.gameOver = false;
@@ -25,33 +125,80 @@ export class Scene {
         this.frameCount = 0;
         this.lastFrameTime = new Date().getTime();
         this.fps = 0;
+        
+        // Animation easing
+        this.jewelEasing = "sine.in";
 
+        // Multiplier timer variables
+        this.lastMatchTime = 0;
+        this.multiplierResetTimer = 3.0; // 3 seconds countdown by default
+        
+        // Score tracking variables
+        this.match3Count = 0;
+        this.match4Count = 0;
+        this.match5Count = 0;
+        this.explosionCount = 0;
+        this.bonusBoxCount = 0;
+        this.smallClearCount = 0;
+        this.bigClearCount = 0;
+        this.multiplierValues = []; // Track all multiplier values for averaging
         
         // Jewel colors and letters - add more colors as needed
-        this.jewelColors = ['#FF6B6B', '#4ECDC4', '#0066FF', '#FFA726', '#9B59B6', '#FFFFFF', '#808080']; // Red, Teal, Primary Blue, Orange, Purple, White (bonus), Grey (L-bonus)
-        this.jewelLetters = ['r', 't', 'b', 'o', 'p', 'w', 'g']; // r=red, t=teal, b=blue, o=orange, p=purple, w=white (bonus), g=grey (L-bonus)
+        this.jewelColors = ['#FF6B6B', '#4ECDC4', '#0066FF', '#FFA726', '#9B59B6', '#FFFFFF', '#808080']; // Red, Green, Primary Blue, Orange, Purple, White (bonus), L-bonus
+        this.jewelLetters = ['r', 'g', 'b', 'o', 'p', 'w', 'l']; // r=red, g=green, b=blue, o=orange, p=purple, w=white (bonus), l=L-bonus
         
         // Initialize game
         this.initializeGrid();
         this.createGameHTML();
         this.bindEvents();
-        this.showStartMenu();
     }
 
     initializeGrid() {
         this.grid = [];
+        
+        // TEST SCENARIO: Set up the 5-in-a-row pattern that creates both W and L blocks
+        // Pattern:
+        // xxgxx
+        // xxgxx  
+        // xxgxx
+        // xxgxx
+        // ggrgg
+        // xxgxx
+        
+        // Initialize all positions first
+        // Initialize the grid array structure
         for (let row = 0; row < this.GRID_SIZE; row++) {
             this.grid[row] = [];
             for (let col = 0; col < this.GRID_SIZE; col++) {
-                this.grid[row][col] = Math.floor(Math.random() * this.JEWEL_TYPES);
+                // Default to random non-green blocks
+                const nonGreenTypes = [0, 2, 3, 4]; // red, blue, orange, purple
+                this.grid[row][col] = nonGreenTypes[Math.floor(Math.random() * nonGreenTypes.length)];
             }
         }
         
-        // Create a sample white bonus box at the center
-        this.grid[4][4] = 5; // White jewel index
+        // Set the 5th row (index 4) to create the 5-match: ggrgg
+        // this.grid[4][0] = 1; // Green (type 1 = green)
+        // this.grid[4][1] = 1; // Green (type 1 = green)
+        // this.grid[4][2] = 0; // Red (type 0 = red) - the 'r' in the middle
+        // this.grid[4][3] = 1; // Green (type 1 = green)
+        // this.grid[4][4] = 1; // Green (type 1 = green)
+
+        // this.grid[3][2] = 1; // Green (type 1 = green)
+        // this.grid[2][2] = 1; // Green (type 1 = green)
+        // this.grid[1][2] = 1; // Green (type 1 = green)
+
+        // this.grid[5][2] = 1; // Green (type 1 = green)
         
-        // Remove initial matches
+        // console.log('5th row values:', this.grid[4]);
+        // console.log('jewelLetters:', this.jewelLetters);
+        // console.log('5th row should be:', this.grid[4].map(val => this.jewelLetters[val]));
+        
+        
+        // console.log('Grid after setting test scenario:', JSON.stringify(this.grid));
+        
+        // Remove initial matches (but preserve our test scenario)
         this.removeInitialMatches();
+        console.log('Grid after removeInitialMatches:', JSON.stringify(this.grid));
     }
 
     removeInitialMatches() {
@@ -64,8 +211,11 @@ export class Scene {
             
             for (let row = 0; row < this.GRID_SIZE; row++) {
                 for (let col = 0; col < this.GRID_SIZE; col++) {
-                    // Skip the bonus box position
-                    if (row === 4 && col === 4) continue;
+                    // Skip the bonus box positions
+                    // if ((row === 3 && col === 3) || (row === 3 && col === 4)) continue;
+                    
+                    // // Skip our test scenario (5th row and middle columns)
+                    // if (row === 4 || col === 2 || col === 3) continue;
                     
                     if (this.wouldCreateMatch(row, col, this.grid[row][col])) {
                         this.grid[row][col] = Math.floor(Math.random() * this.JEWEL_TYPES);
@@ -96,7 +246,21 @@ export class Scene {
         
         const gameContainer = document.createElement('div');
         gameContainer.id = 'jewelGameContainer';
-        gameContainer.innerHTML = `<div id="jewelGrid" class="jewel-grid"></div>`;
+        gameContainer.innerHTML = `
+            <div class="jewel-circle">
+                <span class="x">x</span><span class="multiplier">1</span>
+            </div>
+            <div class="jewel-meter">
+                <div class="jewel-meter-fill"></div>
+            </div>
+            <div id="jewelGrid" class="jewel-grid">
+                <div class="checkerboard-grid"></div>
+            </div>
+            <div class="jewel-buttons">
+                <div id="playButton">PLAY</div>
+                <div id="instructionsButton">INSTRUCTIONS</div>
+            </div>
+        `;
         document.body.appendChild(gameContainer);
         
         // Create mask to hide falling bricks from top
@@ -116,8 +280,7 @@ export class Scene {
         // Debug info
         console.log('Mask created with:', {
             id: gridElement.id,
-            position: gridElement.style.position,
-            top: gridElement.style.top,
+            position: gridElement.style.top,
             left: gridElement.style.left,
             width: gridElement.style.width,
             height: gridElement.style.height,
@@ -125,6 +288,95 @@ export class Scene {
         });
         
         this.renderGrid();
+        
+        // Position the UI elements relative to the grid
+        this.positionUI();
+        
+        // Add button event listeners
+        const playButton = document.querySelector('.jewel-buttons #playButton');
+        const instructionsButton = document.querySelector('.jewel-buttons #instructionsButton');
+        
+        // console.log('Found play button:', playButton);
+        // console.log('Found instructions button:', instructionsButton);
+        
+        if (playButton) {
+            console.log('Adding click listener to play button');
+            playButton.addEventListener('click', (e) => {
+                // console.log('Play button clicked!', e);
+                e.preventDefault();
+                e.stopPropagation();
+                this.startGame();
+                const buttonContainer = document.querySelector('.jewel-buttons');
+                if (buttonContainer) {
+                    buttonContainer.style.display = 'none';
+                    // console.log('Buttons hidden');
+                }
+            });
+            
+            // Also try mousedown and touchstart as backup
+            playButton.addEventListener('mousedown', (e) => {
+                // console.log('Play button mousedown!', e);
+            });
+            
+            playButton.addEventListener('touchstart', (e) => {
+                // console.log('Play button touchstart!', e);
+            });
+        }else{
+            // console.log('No play button found');
+        }
+        
+        if (instructionsButton) {
+            instructionsButton.addEventListener('click', () => {
+                console.log('Instructions button clicked!');
+                this.e.s.p("click1");
+                const instructionsOverlay = document.getElementById('instructionsOverlay');
+                if (instructionsOverlay) instructionsOverlay.style.display = 'flex';
+            });
+        }
+        
+        // Add close instructions button listener
+        const closeInstructionsButton = document.getElementById('closeInstructionsButton');
+        if (closeInstructionsButton) {
+            closeInstructionsButton.addEventListener('click', () => {
+                console.log('Close instructions button clicked!');
+                this.e.s.p("click1");
+                const instructionsOverlay = document.getElementById('instructionsOverlay');
+                if (instructionsOverlay) instructionsOverlay.style.display = 'none';
+            });
+        }
+    }
+
+    positionUI() {
+        const gridElement = document.getElementById('jewelGrid');
+        const meterElement = document.querySelector('.jewel-meter');
+        const buttonsElement = document.querySelector('.jewel-buttons');
+        const circleElement = document.querySelector('.jewel-circle');
+        
+        if (gridElement && meterElement && buttonsElement && circleElement) {
+            const gridRect = gridElement.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const viewportCenter = viewportHeight / 2;
+            const gridHeight = gridRect.height;
+            const halfGridHeight = gridHeight / 2;
+            
+            // Position circle: viewport center - half grid height - 37px (above meter, nudged up 2px)
+            const circleTop = viewportCenter - halfGridHeight - 37;
+            circleElement.style.top = circleTop + 'px';
+            
+            // Position meter: viewport center - half grid height - 30px
+            const meterTop = viewportCenter - halfGridHeight - 30;
+            meterElement.style.top = meterTop + 'px';
+            
+            // Set meter width to match grid width exactly (minus 4px for padding)
+            meterElement.style.width = (gridRect.width - 4) + 'px';
+            
+            // Position buttons: viewport center + half grid height + 30px
+            const buttonsTop = viewportCenter + halfGridHeight + 20;
+            buttonsElement.style.top = buttonsTop + 'px';
+            
+            // Set buttons width to match grid width
+            buttonsElement.style.width = gridRect.width + 'px';
+        }
     }
 
     renderGrid() {
@@ -146,14 +398,51 @@ export class Scene {
             }
         });
         
-        gridElement.innerHTML = '';
-        
-        // Calculate jewel size
+        // Calculate jewel size first
         const gridWidth = gridElement.offsetWidth - 20;
         const gridHeight = gridElement.offsetHeight - 20;
         this.jewelSize = Math.floor(Math.min(gridWidth / this.GRID_SIZE, gridHeight / this.GRID_SIZE) - 2);
         this.jewelGap = 2;
         this.gridPadding = 10;
+        
+        // Clear the grid but preserve the checkerboard container
+        const checkerboardGrid = gridElement.querySelector('.checkerboard-grid');
+        gridElement.innerHTML = '';
+        
+        // Recreate the checkerboard grid
+        const newCheckerboardGrid = document.createElement('div');
+        newCheckerboardGrid.className = 'checkerboard-grid';
+        gridElement.appendChild(newCheckerboardGrid);
+        
+        // Create checkerboard background
+        console.log('Checkerboard grid element:', newCheckerboardGrid);
+        if (newCheckerboardGrid) {
+            let cellCount = 0;
+            for (let row = 0; row < this.GRID_SIZE; row++) {
+                for (let col = 0; col < this.GRID_SIZE; col++) {
+                    const checkerboardCell = document.createElement('div');
+                    checkerboardCell.className = 'checkerboard-cell';
+                    checkerboardCell.style.left = `${this.gridPadding + col * (this.jewelSize + this.jewelGap)}px`;
+                    checkerboardCell.style.top = `${this.gridPadding + row * (this.jewelSize + this.jewelGap)}px`;
+                    checkerboardCell.style.width = `${this.jewelSize}px`;
+                    checkerboardCell.style.height = `${this.jewelSize}px`;
+                    
+                    // Apply checkerboard pattern
+                    if ((row + col) % 2 === 0) {
+                        checkerboardCell.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                        // console.log(`Created checkerboard cell at [${row},${col}] with background`);
+                    } else {
+                        // console.log(`Created checkerboard cell at [${row},${col}] without background`);
+                    }
+                    
+                    newCheckerboardGrid.appendChild(checkerboardCell);
+                    cellCount++;
+                }
+            }
+            console.log(`Created ${cellCount} checkerboard cells`);
+        } else {
+            console.error('Checkerboard grid not found!');
+        }
         
         // Create jewels
         for (let row = 0; row < this.GRID_SIZE; row++) {
@@ -163,15 +452,36 @@ export class Scene {
                 jewelElement.dataset.row = row;
                 jewelElement.dataset.col = col;
                 jewelElement.dataset.color = this.jewelLetters[this.grid[row][col]];
-                jewelElement.style.backgroundColor = this.jewelColors[this.grid[row][col]];
                 jewelElement.style.width = `${this.jewelSize}px`;
                 jewelElement.style.height = `${this.jewelSize}px`;
                 jewelElement.style.left = `${this.gridPadding + col * (this.jewelSize + this.jewelGap)}px`;
                 jewelElement.style.top = `${this.gridPadding + row * (this.jewelSize + this.jewelGap)}px`;
                 
-                // Style bonus boxes (white and grey jewels)
+                // Create and add the jewel image
+                const jewelImage = document.createElement('img');
+                jewelImage.src = `src/images/jewel_${this.jewelLetters[this.grid[row][col]]}.png`;
+                jewelImage.style.width = '100%';
+                jewelImage.style.height = '100%';
+                jewelImage.style.objectFit = 'contain';
+                jewelImage.style.pointerEvents = 'none';
+                jewelImage.style.display = 'block';
+                jewelElement.appendChild(jewelImage);
+                
+                                        // Style bonus boxes (white and L-bonus jewels)
                 if (this.grid[row][col] === 5 || this.grid[row][col] === 6) {
                     jewelElement.dataset.bonusBox = 'true';
+                    
+                    // Add glowing tween to bonus box images
+                    const jewelImage = jewelElement.querySelector('img');
+                    if (jewelImage) {
+                        gsap.to(jewelImage, {
+                            filter: "brightness(2.5)",
+                            duration: 1.5,
+                            ease: "power2.inOut",
+                            yoyo: true,
+                            repeat: -1
+                        });
+                    }
                 }
                 
                 // Add debug text box at lower left corner
@@ -205,7 +515,7 @@ export class Scene {
             if (jewelInFirstColumn) {
                 const yPosition = parseInt(jewelInFirstColumn.style.top) || 0;
                 this.initialRowPositions[row] = yPosition;
-                console.log(`Initial position for row ${row}: Y = ${yPosition}px`);
+                // console.log(`Initial position for row ${row}: Y = ${yPosition}px`);
             }
         }
         
@@ -254,15 +564,27 @@ export class Scene {
         const instructionsOverlay = document.getElementById('instructionsOverlay');
         const closeInstructionsButton = document.getElementById('closeInstructionsButton');
         
+        console.log('showStartMenu - Elements found:', {
+            startMenu: !!startMenu,
+            playButton: !!playButton,
+            instructionsButton: !!instructionsButton,
+            instructionsOverlay: !!instructionsOverlay,
+            closeInstructionsButton: !!closeInstructionsButton
+        });
+        
         if (startMenu && playButton) {
             startMenu.style.display = 'flex';
             playButton.onclick = () => this.startGame();
             
             if (instructionsButton && instructionsOverlay && closeInstructionsButton) {
-                instructionsButton.onclick = () => instructionsOverlay.style.display = 'flex';
-                closeInstructionsButton.onclick = () => instructionsOverlay.style.display = 'none';
+                // Event handlers are already set up in the constructor
+                // Just add the overlay click handler here
                 instructionsOverlay.onclick = (e) => {
-                    if (e.target === instructionsOverlay) instructionsOverlay.style.display = 'none';
+                    if (e.target === instructionsOverlay) {
+                        console.log('Instructions overlay clicked, playing click sound');
+                        this.e.s.p("click1");
+                        instructionsOverlay.style.display = 'none';
+                    }
                 };
             }
         }
@@ -272,9 +594,15 @@ export class Scene {
         const startMenu = document.getElementById('startMenu');
         if (startMenu) startMenu.style.display = 'none';
         
+        // Play start sound
+        this.e.s.p("jewel_start");
+        
         this.gameStarted = true;
         this.startTimer();
         this.updateScoreDisplay();
+        this.updateMultiplierDisplay();
+        this.updateMeterDisplay();
+        this.lastMatchTime = Date.now();
     }
 
     startTimer() {
@@ -296,6 +624,70 @@ export class Scene {
     updateScoreDisplay() {
         const scoreDiv = document.getElementById('scoreDiv');
         if (scoreDiv) scoreDiv.textContent = `SCORE: ${this.score}`;
+    }
+
+    updateMultiplierDisplay() {
+        const multiplierSpan = document.querySelector('.jewel-circle .multiplier');
+        if (multiplierSpan) {
+            multiplierSpan.textContent = this.scoreMultiplier;
+        }
+    }
+
+    updateMeterDisplay() {
+        const meterFill = document.querySelector('.jewel-meter-fill');
+        if (meterFill) {
+            // Kill any existing GSAP tweens on the meter
+            gsap.killTweensOf(meterFill);
+            
+            // Calculate width percentage (1 = 0%, 10 = 100%)
+            const widthPercentage = ((this.scoreMultiplier - 1) / (this.maxMultiplier - 1)) * 100;
+            
+            // Animate the meter width with GSAP
+            gsap.to(meterFill, {
+                width: widthPercentage + '%',
+                duration: 0.25,
+                ease: "power2.out"
+            });
+        }
+    }
+
+    increaseMultiplier() {
+        if (this.scoreMultiplier < this.maxMultiplier) {
+            this.scoreMultiplier += 0.5;
+            this.updateMultiplierDisplay();
+            this.updateMeterDisplay();
+            
+            // Start the reset timer for this multiplier
+            this.startMultiplierResetTimer();
+        }
+    }
+
+    resetMultiplier() {
+        // Only play loseStreak sound if the streak was 2 or better AND game hasn't ended
+        if (this.scoreMultiplier >= 2 && !this.gameOver) {
+            this.e.s.p("loseStreak");
+        }
+        
+        this.scoreMultiplier = 1;
+        this.updateMultiplierDisplay();
+        this.updateMeterDisplay();
+        // Stop the reset timer since we're manually resetting
+        this.stopMultiplierResetTimer();
+    }
+
+    startMultiplierResetTimer() {
+        // Calculate timer: start at 3 seconds, subtract (multiplier * 0.2) seconds
+        const baseTime = 2.1;
+        const timeReduction = this.scoreMultiplier * 0.4;
+        this.multiplierResetTimer = baseTime - timeReduction; // Minimum 0.5 seconds
+        if(this.multiplierResetTimer<.85){
+            this.multiplierResetTimer = 0.85;
+        }
+    }
+
+    stopMultiplierResetTimer() {
+        // Set timer to 0 to disable countdown
+        this.multiplierResetTimer = 0;
     }
 
     handleDragStart(e) {
@@ -358,7 +750,7 @@ export class Scene {
             
             if (hasValidTarget) {
                 this.hasTriggeredSwap = true;
-                this.isAnimating = true;
+                this.setAnimatingTrue();
                 // this.clearAllHighlights();
                 this.attemptSwap(this.gestureStartJewel.row, this.gestureStartJewel.col, targetRow, targetCol);
             }
@@ -398,26 +790,208 @@ export class Scene {
         const jewel2 = document.querySelector(`[data-row="${row2}"][data-col="${col2}"]`);
         
         if (!jewel1 || !jewel2) {
-            this.isAnimating = false;
+            this.setAnimatingFalse();
             this.showInvalidMoveFeedback(row1, col1, row2, col2);
             
             return;
         }
         
         // Check if one of the swapped jewels is a bonus box
-        const isBonusBox1 = jewel1.dataset.color === 'w' || jewel1.dataset.color === 'g';
-        const isBonusBox2 = jewel2.dataset.color === 'w' || jewel2.dataset.color === 'g';
+        const isBonusBox1 = jewel1.dataset.color === 'w' || jewel1.dataset.color === 'l';
+        const isBonusBox2 = jewel2.dataset.color === 'w' || jewel2.dataset.color === 'l';
         
         if (isBonusBox1 || isBonusBox2) {
+            // Save current multiplier for bonus box usage
+            this.savedMultiplier = this.scoreMultiplier;
+            // Reset the multiplier timer when using a bonus box
+            this.startMultiplierResetTimer();
+            
+            // Check for bonus box to bonus box interactions
+            if (isBonusBox1 && isBonusBox2) {
+                const bonusBox1Type = jewel1.dataset.color;
+                const bonusBox2Type = jewel2.dataset.color;
+                
+                // Grey to Grey (L-bonus to L-bonus)
+                if (bonusBox1Type === 'l' && bonusBox2Type === 'l') {
+                    console.log("L-bonus to L-bonus interaction detected!");
+                    this.explosionCount++; // Track explosion usage
+                    
+                    // Play explosion sound
+                    this.e.s.p("jewel_explosion");
+                    
+                    // Create larger diamond explosion
+                    const jewelsToClear = [];
+                    const bonusBoxRow = row1;
+                    const bonusBoxCol = col1;
+                    
+                    // Create larger diamond pattern (4 blocks in each direction instead of 3)
+                    for (let r = Math.max(0, bonusBoxRow - 4); r <= Math.min(this.GRID_SIZE - 1, bonusBoxRow + 4); r++) {
+                        for (let c = Math.max(0, bonusBoxCol - 4); c <= Math.min(this.GRID_SIZE - 1, bonusBoxCol + 4); c++) {
+                            // Calculate Manhattan distance (diamond shape)
+                            const distance = Math.abs(r - bonusBoxRow) + Math.abs(c - bonusBoxCol);
+                            if (distance <= 4) {
+                                // Check if this position has a special block (bonus box)
+                                const jewelElement = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+                                if (jewelElement) {
+                                    const jewelColor = jewelElement.dataset.color;
+                                    // Only clear regular jewels (0-4), not bonus boxes (5-6)
+                                    if (jewelColor !== 'w' && jewelColor !== 'l') {
+                                        jewelsToClear.push({ row: r, col: c });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (jewelsToClear.length > 0) {
+                        // Calculate score for L-bonus to L-bonus interaction (1000 points)
+                        const finalScore = 1000 * this.savedMultiplier;
+                        this.score += finalScore;
+                        console.log(`SCORE: +${finalScore} (L-bonus to L-bonus: 1000 × ${this.savedMultiplier}x saved multiplier)`);
+                        this.updateScoreDisplay();
+                        
+                        // Show score popup at center of explosion
+                        const centerX = (this.gridPadding + bonusBoxCol * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+                        const centerY = (this.gridPadding + bonusBoxRow * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+                        this.showScorePopup(finalScore, [{ x: centerX, y: centerY }]);
+                        
+                        // Create explosion effects before clearing
+                        this.createExplosionEffect(row2, col2, jewelsToClear);
+                        
+                        // Animate the swap and clear
+                        this.animateSwap(row1, col1, row2, col2, () => {
+                            // Clear all jewels in the larger diamond pattern
+                            this.clearAllJewelsOfColor(jewelsToClear, () => {
+                                this.handleBlockFallingAfterMatch([], []);
+                            });
+                        });
+                        
+                        // Increase multiplier AFTER scoring is done
+                        this.increaseMultiplier();
+                        return;
+                    }
+                }
+                
+                // Grey to White (L-bonus to White bonus)
+                if ((bonusBox1Type === 'l' && bonusBox2Type === 'w') || (bonusBox1Type === 'w' && bonusBox2Type === 'l')) {
+                    console.log("L-bonus to White bonus interaction detected!");
+                    this.smallClearCount++; // Track small board clear
+                    
+                    // Play board clear sound
+                    this.e.s.p("jewel_clear");
+                    
+                    // Clear entire board
+                    const allJewels = document.querySelectorAll('.jewel');
+                    const jewelsToClear = [];
+                    
+                    allJewels.forEach(jewel => {
+                        const row = parseInt(jewel.dataset.row);
+                        const col = parseInt(jewel.dataset.col);
+                        if (row >= 0 && col >= 0) {
+                            jewelsToClear.push({ row, col });
+                        }
+                    });
+                    
+                    if (jewelsToClear.length > 0) {
+                        // Calculate score for L-bonus to White interaction (1500 points)
+                        const finalScore = 1500 * this.savedMultiplier;
+                        this.score += finalScore;
+                        console.log(`SCORE: +${finalScore} (L-bonus to White: 1500 × ${this.savedMultiplier}x saved multiplier)`);
+                        this.updateScoreDisplay();
+                        
+                        // Show score popup at center of board
+                        const centerX = (this.gridPadding + 3.5 * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+                        const centerY = (this.gridPadding + 3.5 * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+                        this.showScorePopup(finalScore, [{ x: centerX, y: centerY }]);
+                        
+                        // Create epic board-clearing explosion effect
+                        this.createEpicBoardExplosion();
+                        
+                        // Animate the swap and clear entire board
+                        this.animateSwap(row1, col1, row2, col2, () => {
+                            // Pause the game for 1 second during the epic explosion
+                            this.setAnimatingTrue();
+                            setTimeout(() => {
+                                this.clearAllJewelsOfColor(jewelsToClear, () => {
+                                    this.handleBlockFallingAfterMatch([], []);
+                                });
+                                this.setAnimatingFalse();
+                            }, 1000);
+                        });
+                        
+                        // Increase multiplier AFTER scoring is done
+                        this.increaseMultiplier();
+                        return;
+                    }
+                }
+                
+                // White to White (White bonus to White bonus)
+                if (bonusBox1Type === 'w' && bonusBox2Type === 'w') {
+                    console.log("White bonus to White bonus interaction detected!");
+                    this.bigClearCount++; // Track big board clear
+                    
+                    // Play board clear sound
+                    this.e.s.p("jewel_clear");
+                    
+                    // Clear entire board
+                    const allJewels = document.querySelectorAll('.jewel');
+                    const jewelsToClear = [];
+                    
+                    allJewels.forEach(jewel => {
+                        const row = parseInt(jewel.dataset.row);
+                        const col = parseInt(jewel.dataset.col);
+                        if (row >= 0 && col >= 0) {
+                            jewelsToClear.push({ row, col });
+                        }
+                    });
+                    
+                    if (jewelsToClear.length > 0) {
+                        // Calculate score for White to White interaction (2000 points)
+                        const finalScore = 2000 * this.savedMultiplier;
+                        this.score += finalScore;
+                        console.log(`SCORE: +${finalScore} (White to White: 2000 × ${this.savedMultiplier}x saved multiplier)`);
+                        this.updateScoreDisplay();
+                        
+                        // Show score popup at center of board
+                        const centerX = (this.gridPadding + 3.5 * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+                        const centerY = (this.gridPadding + 3.5 * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+                        this.showScorePopup(finalScore, [{ x: centerX, y: centerY }]);
+                        
+                        // Create epic board-clearing explosion effect
+                        this.createEpicBoardExplosion();
+                        
+                        // Animate the swap and clear entire board
+                        this.animateSwap(row1, col1, row2, col2, () => {
+                            // Pause the game for 1 second during the epic explosion
+                            this.setAnimatingTrue();
+                            setTimeout(() => {
+                                this.clearAllJewelsOfColor(jewelsToClear, () => {
+                                    this.handleBlockFallingAfterMatch([], []);
+                                });
+                                this.setAnimatingFalse();
+                            }, 1000);
+                        });
+                        
+                        // Increase multiplier AFTER scoring is done
+                        this.increaseMultiplier();
+                        return;
+                    }
+                }
+            }
+            
             // Determine which bonus box and its type
             const bonusBoxJewel = isBonusBox1 ? jewel1 : jewel2;
             const bonusBoxType = bonusBoxJewel.dataset.color;
             const bonusBoxRow = isBonusBox1 ? row1 : row2;
             const bonusBoxCol = isBonusBox1 ? col1 : col2;
             
-            if (bonusBoxType === 'g') {
-                // Grey bonus box: Create diamond-shaped destruction
-                console.log("Grey bonus box swap detected! Creating diamond destruction");
+            if (bonusBoxType === 'l') {
+                // L-bonus box: Create diamond-shaped destruction
+                console.log("L-bonus box swap detected! Creating diamond destruction");
+                this.explosionCount++; // Track explosion usage
+                
+                // Play explosion sound
+                this.e.s.p("jewel_explosion");
                 
                 const jewelsToClear = [];
                 
@@ -427,7 +1001,15 @@ export class Scene {
                         // Calculate Manhattan distance (diamond shape)
                         const distance = Math.abs(r - bonusBoxRow) + Math.abs(c - bonusBoxCol);
                         if (distance <= 3) {
-                            jewelsToClear.push({ row: r, col: c });
+                            // Check if this position has a special block (bonus box)
+                            const jewelElement = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+                            if (jewelElement) {
+                                const jewelColor = jewelElement.dataset.color;
+                                // Only clear regular jewels (0-4), not bonus boxes (5-6)
+                                if (jewelColor !== 'w' && jewelColor !== 'l') {
+                                    jewelsToClear.push({ row: r, col: c });
+                                }
+                            }
                         }
                     }
                 }
@@ -438,23 +1020,68 @@ export class Scene {
                         // Convert the diamond positions to match format
                         const diamondMatches = jewelsToClear.map(pos => ({ row: pos.row, col: pos.col }));
                         
+                        // Calculate score for L-bonus destruction (300 points)
+                        const finalScore = 300 * this.savedMultiplier;
+                        this.score += finalScore;
+                        console.log(`SCORE: +${finalScore} (L-bonus destruction: 300 × ${this.savedMultiplier}x saved multiplier)`);
+                        this.updateScoreDisplay();
+                        
+                        // Calculate center position for single score popup
+                        let centerX = 0;
+                        let centerY = 0;
+                        let validPositions = 0;
+                        
+                        jewelsToClear.forEach(pos => {
+                            const jewelElement = document.querySelector(`[data-row="${pos.row}"][data-col="${pos.col}"]`);
+                            if (jewelElement) {
+                                const rect = jewelElement.getBoundingClientRect();
+                                centerX += rect.left + rect.width / 2;
+                                centerY += rect.top + rect.height / 2;
+                                validPositions++;
+                            }
+                        });
+                        
+                        if (validPositions > 0) {
+                            centerX /= validPositions;
+                            centerY /= validPositions;
+                            
+                            // Show single score popup at center of diamond destruction
+                            this.showScorePopup(finalScore, [{ x: centerX, y: centerY }]);
+                        }
+                        
+                        // Create explosion effects before clearing
+                        this.createExplosionEffect(row2, col2, jewelsToClear);
+                        
                         // Use the same animation and block falling procedure as regular matches
                         this.animateClearMatches(diamondMatches, [], () => {
                             this.handleBlockFallingAfterMatch(diamondMatches, []);
                         });
+                        
+                        // Increase multiplier AFTER L-bonus scoring is done
+                        this.increaseMultiplier();
                     });
                     return;
                 }
             } else {
                 // White bonus box: Clear all jewels of the target color
                 const colorToClear = isBonusBox1 ? jewel2.dataset.color : jewel1.dataset.color;
+                this.bonusBoxCount++; // Track white bonus box usage
+                
+                // Play white jewel sound
+                this.e.s.p("jewel_white");
+                
+                console.log(`White bonus box detected! Color to clear: ${colorToClear}`);
+                console.log(`jewel1.dataset.color: ${jewel1.dataset.color}, jewel2.dataset.color: ${jewel2.dataset.color}`);
+                console.log(`isBonusBox1: ${isBonusBox1}`);
                 
                 if (colorToClear) {
-                    //console.log(`White bonus box swap detected! Clearing all ${colorToClear} jewels`);
+                    console.log(`White bonus box swap detected! Clearing all ${colorToClear} jewels`);
                     
                     // Find all jewels of the target color
                     const jewelsToClear = [];
                     const allJewels = document.querySelectorAll('.jewel');
+                    
+                    console.log(`Total jewels found: ${allJewels.length}`);
                     
                     allJewels.forEach(jewel => {
                         if (jewel.dataset.color === colorToClear) {
@@ -466,19 +1093,67 @@ export class Scene {
                         }
                     });
                     
+                    console.log(`Jewels of color ${colorToClear} found: ${jewelsToClear.length}`);
+                    
                     // Also add the position where the swapped jewel will end up
                     jewelsToClear.push({ row: bonusBoxRow, col: bonusBoxCol });
                     
+                    console.log(`Total jewels to clear (including bonus box): ${jewelsToClear.length}`);
+                    
                     if (jewelsToClear.length > 0) {
+                        // Calculate score for white bonus box usage (flat 500 points)
+                        const jewelsCleared = jewelsToClear.length - 1; // Subtract 1 for the bonus box itself
+                        const finalWhiteBonusScore = 500 * this.savedMultiplier;
+                        this.score += finalWhiteBonusScore;
+                        console.log(`SCORE: +${finalWhiteBonusScore} (white bonus usage: 500 × ${this.savedMultiplier}x saved multiplier)`);
+                        console.log(`Total score now: ${this.score}`);
+                        this.updateScoreDisplay();
+                        
+                        // Show single score popup for white bonus usage
+                        if (jewelsCleared > 0) {
+                            // Calculate center of all cleared jewels for single popup
+                            let centerX = 0;
+                            let centerY = 0;
+                            let validPositions = 0;
+                            
+                            jewelsToClear.slice(0, -1).forEach(pos => {
+                                const jewelElement = document.querySelector(`[data-row="${pos.row}"][data-col="${pos.col}"]`);
+                                if (jewelElement) {
+                                    const rect = jewelElement.getBoundingClientRect();
+                                    centerX += rect.left + rect.width / 2;
+                                    centerY += rect.top + rect.height / 2;
+                                    validPositions++;
+                                }
+                            });
+                            
+                            if (validPositions > 0) {
+                                centerX /= validPositions;
+                                centerY /= validPositions;
+                                
+                                // Show single score popup at center of cleared area
+                                this.showScorePopup(finalWhiteBonusScore, [{ x: centerX, y: centerY }]);
+                            }
+                        }
+                        
+                        // Create white bonus box explosion effect before clearing
+                        this.createWhiteBonusExplosion(row2, col2, colorToClear);
+                        
                         // Animate the swap
                         this.animateSwap(row1, col1, row2, col2, () => {
-                            // Clear all jewels of the target color
-                            this.clearAllJewelsOfColor(jewelsToClear, () => {
-                                // After clearing, handle like a normal match - create new blocks and fall
-                                this.processMatches([]);
-                                // this.handleBlockFallingAfterMatch([], []);
-                            });
+                            // Pause the game for 0.5 seconds during the white bonus explosion
+                            this.setAnimatingTrue();
+                            setTimeout(() => {
+                                // Clear all jewels of the target color
+                                this.clearAllJewelsOfColor(jewelsToClear, () => {
+                                    // After clearing, handle like a normal match - create new blocks and fall
+                                    this.handleBlockFallingAfterMatch([], []);
+                                });
+                                this.setAnimatingFalse();
+                            }, 500);
                         });
+                        
+                        // Increase multiplier AFTER bonus box scoring is done
+                        this.increaseMultiplier();
                         return;
                     }
                 }
@@ -492,14 +1167,17 @@ export class Scene {
         jewel1.dataset.color = color2;
         jewel2.dataset.color = color1;
         
-        const { matches, bonusBoxes } = this.findMatches(true);
+        const { matches, bonusBoxes, matchesByColor } = this.findMatches(true);
         
         jewel1.dataset.color = color1;
         jewel2.dataset.color = color2;
         
         if (matches.length > 0) {
+            // Save current multiplier for regular match
+            this.savedMultiplier = this.scoreMultiplier;
+            
             this.animateSwap(row1, col1, row2, col2, () => {
-                this.processMatches(bonusBoxes);
+                this.processMatches(bonusBoxes, false); // false = not cascade
             });
         } else {
             this.showInvalidMoveFeedback(row1, col1, row2, col2);
@@ -512,11 +1190,11 @@ export class Scene {
         // Also clear any bonus boxes that were involved in the swap
         const allJewels = document.querySelectorAll('.jewel');
         allJewels.forEach(jewel => {
-            if ((jewel.dataset.color === 'w' || jewel.dataset.color === 'g') && jewel.dataset.bonusBox === 'true') {
+            if ((jewel.dataset.color === 'w' || jewel.dataset.color === 'l') && jewel.dataset.bonusBox === 'true') {
                 const row = parseInt(jewel.dataset.row);
                 const col = parseInt(jewel.dataset.col);
                 if (row >= 0 && col >= 0) {
-                    //console.log(`Clearing ${jewel.dataset.color === 'w' ? 'white' : 'grey'} bonus box at [${row},${col}]`);
+                    //console.log(`Clearing ${jewel.dataset.color === 'w' ? 'white' : 'L-bonus'} bonus box at [${row},${col}]`);
                     elements.push(jewel);
                     
                     // Mark as cleared and void
@@ -564,7 +1242,7 @@ export class Scene {
                 rotation: 360,
                 scale: 0,
                 duration: 0.25,
-                ease: "power2.out",
+                ease: this.jewelEasing,
                 transformOrigin: "center center"
             }, 0);
         } else {
@@ -629,7 +1307,7 @@ export class Scene {
 
         
         // Start block falling animation immediately
-        this.isAnimating = true;
+        this.setAnimatingTrue();
         this.animateAllBlocksToFinalPositions(allBlocksToMove);
     }
     
@@ -641,7 +1319,7 @@ export class Scene {
             if (!blockAtCheckRow || blockAtCheckRow.dataset.cleared === 'true' || blockAtCheckRow.dataset.void === 'true') {
                 spacesToFall++;
             }
-            // Note: Bonus boxes (both white 'w' and grey 'g') that are NOT cleared are treated as filled spaces
+            // Note: Bonus boxes (both white 'w' and L-bonus 'l') that are NOT cleared are treated as filled spaces
             // and will prevent blocks from falling through them
         }
         return spacesToFall;
@@ -672,7 +1350,7 @@ export class Scene {
                     
                     if (color1 && color2 && color3) {
                         // Skip if any of the colors are bonus boxes (they should never participate in matches)
-                        if (color1 === 'w' || color2 === 'w' || color3 === 'w' || color1 === 'g' || color2 === 'g' || color3 === 'g') {
+                        if (color1 === 'w' || color2 === 'w' || color3 === 'w' || color1 === 'l' || color2 === 'l' || color3 === 'l') {
                             continue;
                         }
                         
@@ -684,13 +1362,13 @@ export class Scene {
                             
                             // Check for 4th jewel
                             const jewel4 = document.querySelector(`[data-row="${row}"][data-col="${col + 3}"]`);
-                            if (jewel4 && color1 === jewel4.dataset.color && jewel4.dataset.color !== 'w' && jewel4.dataset.color !== 'g') {
+                            if (jewel4 && color1 === jewel4.dataset.color && jewel4.dataset.color !== 'w' && jewel4.dataset.color !== 'l') {
                                 matchLength = 4;
                                 endCol = col + 3;
                                 
                                 // Check for 5th jewel
                                 const jewel5 = document.querySelector(`[data-row="${row}"][data-col="${col + 4}"]`);
-                                if (jewel5 && color1 === jewel5.dataset.color && jewel5.dataset.color !== 'w' && jewel5.dataset.color !== 'g') {
+                                if (jewel5 && color1 === jewel5.dataset.color && jewel5.dataset.color !== 'w' && jewel5.dataset.color !== 'l') {
                                     matchLength = 5;
                                     endCol = col + 4;
                                 }
@@ -726,7 +1404,7 @@ export class Scene {
                     
                     if (color1 && color2 && color3) {
                         // Skip if any of the colors are bonus boxes
-                        if (color1 === 'w' || color2 === 'w' || color3 === 'w' || color1 === 'g' || color2 === 'g' || color3 === 'g') {
+                        if (color1 === 'w' || color2 === 'w' || color3 === 'w' || color1 === 'l' || color2 === 'l' || color3 === 'l') {
                             continue;
                         }
                         
@@ -738,13 +1416,13 @@ export class Scene {
                             
                             // Check for 4th jewel
                             const jewel4 = document.querySelector(`[data-row="${row + 3}"][data-col="${col}"]`);
-                            if (jewel4 && color1 === jewel4.dataset.color && jewel4.dataset.color !== 'w' && jewel4.dataset.color !== 'g') {
+                            if (jewel4 && color1 === jewel4.dataset.color && jewel4.dataset.color !== 'w' && jewel4.dataset.color !== 'l') {
                                 matchLength = 4;
                                 endRow = row + 3;
                                 
                                 // Check for 5th jewel
                                 const jewel5 = document.querySelector(`[data-row="${row + 4}"][data-col="${col}"]`);
-                                if (jewel5 && color1 === jewel5.dataset.color && jewel5.dataset.color !== 'w' && jewel5.dataset.color !== 'g') {
+                                if (jewel5 && color1 === jewel5.dataset.color && jewel5.dataset.color !== 'w' && jewel5.dataset.color !== 'l') {
                                     matchLength = 5;
                                     endRow = row + 4;
                                 }
@@ -765,9 +1443,83 @@ export class Scene {
                 }
             }
         }
+
+        this.found5=false;
+         // Process regular matches
+         horizontalMatches.forEach(horizontalMatch => {
+            if (horizontalMatch.length === 5 && allowBonusBoxes) {
+                // Handle 5-jewel match with white bonus box
+                const centerCol = horizontalMatch.startCol + 2;
+                const centerJewel = document.querySelector(`[data-row="${horizontalMatch.row}"][data-col="${centerCol}"]`);
+                
+                if (centerJewel && !visited.has(`${horizontalMatch.row}-${centerCol}`)) {
+                    bonusBoxes.push({ row: horizontalMatch.row, col: centerCol, type: 'white' });
+                    
+                    // Play jewel make sound for white bonus creation
+                    this.e.s.p("jewel_make");
+                    this.found5=true;
+                    
+                    visited.add(`${horizontalMatch.row}-${centerCol}`);
+                }
+                
+                // Add all 5 jewels to matches EXCEPT the center (bonus box)
+                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
+                    const key = `${horizontalMatch.row}-${c}`;
+                    if (!visited.has(key) && c !== centerCol) {
+                        matches.push({ row: horizontalMatch.row, col: c });
+                        visited.add(key);
+                    }
+                }
+            } else {
+                // Regular 3, 4, or 5 jewel match (no bonus box)
+                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
+                    const key = `${horizontalMatch.row}-${c}`;
+                    if (!visited.has(key)) {
+                        matches.push({ row: horizontalMatch.row, col: c });
+                        visited.add(key);
+                    }
+                }
+            }
+        });
         
+        verticalMatches.forEach(verticalMatch => {
+            if (verticalMatch.length === 5 && allowBonusBoxes) {
+                // Handle 5-jewel match with white bonus box
+                const centerRow = verticalMatch.startRow + 2;
+                const centerJewel = document.querySelector(`[data-row="${centerRow}"][data-col="${verticalMatch.col}"]`);
+                
+                if (centerJewel && !visited.has(`${centerRow}-${verticalMatch.col}`)) {
+                    bonusBoxes.push({ row: centerRow, col: verticalMatch.col, type: 'white' });
+                    
+                    // Play jewel make sound for white bonus creation
+                    this.e.s.p("jewel_make");
+                    this.found5=true;
+                    
+                    visited.add(`${centerRow}-${verticalMatch.col}`);
+                }
+                
+                // Add all 5 jewels to matches EXCEPT the center (bonus box)
+                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
+                    const key = `${r}-${verticalMatch.col}`;
+                    if (!visited.has(key) && r !== centerRow) {
+                        matches.push({ row: r, col: verticalMatch.col });
+                        visited.add(key);
+                    }
+                }
+            } else {
+                // Regular 3, 4, or 5 jewel match (no bonus box)
+                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
+                    const key = `${r}-${verticalMatch.col}`;
+                    if (!visited.has(key)) {
+                        matches.push({ row: r, col: verticalMatch.col });
+                        visited.add(key);
+                    }
+                }
+            }
+        });
+
         // Check for L-shaped matches (before processing regular matches)
-        if (allowBonusBoxes) {
+        if (allowBonusBoxes && this.found5===false) {
             horizontalMatches.forEach((horizontalMatch, hIndex) => {
                 verticalMatches.forEach((verticalMatch, vIndex) => {
                     // Check for L-shape: vertical line intersects with horizontal line at one end
@@ -814,88 +1566,43 @@ export class Scene {
                         // Check if this intersection point isn't already a bonus box
                         const intersectionJewel = document.querySelector(`[data-row="${intersectionRow}"][data-col="${intersectionCol}"]`);
                         if (intersectionJewel && intersectionJewel.dataset.bonusBox !== 'true') {
-                            console.log("Creating grey bonus box at intersection");
-                            
-                            // Follow the EXACT same steps as white bonus box creation:
-                            // 1. Add to bonusBoxes array
-                            bonusBoxes.push({ row: intersectionRow, col: intersectionCol, type: 'grey' });
+                                                    console.log("Creating L-bonus box at intersection");
+                        
+                        // Follow the EXACT same steps as white bonus box creation:
+                        // 1. Add to bonusBoxes array
+                        bonusBoxes.push({ row: intersectionRow, col: intersectionCol, type: 'L-bonus' });
+                        
+                        // Play jewel make sound for L-bonus creation
+                        this.e.s.p("jewel_make");
                             
                             // 2. Mark as visited to prevent duplicate processing
                             visited.add(intersectionKey);
                             
-                            // 3. Return immediately to prevent regular match processing
-                            console.log("L-shape detected - returning early");
-                            return { matches: [], bonusBoxes };
+                            // 3. Continue processing regular matches (don't return early)
+                            console.log("L-shape detected - continuing to process regular matches");
                         }
                     }
                 });
             });
         }
         
-        // Process regular matches
-        horizontalMatches.forEach(horizontalMatch => {
-            if (horizontalMatch.length === 5 && allowBonusBoxes) {
-                // Handle 5-jewel match with white bonus box
-                const centerCol = horizontalMatch.startCol + 2;
-                const centerJewel = document.querySelector(`[data-row="${horizontalMatch.row}"][data-col="${centerCol}"]`);
-                
-                if (centerJewel && !visited.has(`${horizontalMatch.row}-${centerCol}`)) {
-                    bonusBoxes.push({ row: horizontalMatch.row, col: centerCol, type: 'white' });
-                    visited.add(`${horizontalMatch.row}-${centerCol}`);
+       
+        
+        // Group matches by color for proper scoring
+        const matchesByColor = {};
+        
+        matches.forEach(match => {
+            const jewel = document.querySelector(`[data-row="${match.row}"][data-col="${match.col}"]`);
+            if (jewel) {
+                const color = jewel.dataset.color;
+                if (!matchesByColor[color]) {
+                    matchesByColor[color] = [];
                 }
-                
-                // Add all 5 jewels to matches EXCEPT the center (bonus box)
-                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
-                    const key = `${horizontalMatch.row}-${c}`;
-                    if (!visited.has(key) && c !== centerCol) {
-                        matches.push({ row: horizontalMatch.row, col: c });
-                        visited.add(key);
-                    }
-                }
-            } else {
-                // Regular 3, 4, or 5 jewel match (no bonus box)
-                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
-                    const key = `${horizontalMatch.row}-${c}`;
-                    if (!visited.has(key)) {
-                        matches.push({ row: horizontalMatch.row, col: c });
-                        visited.add(key);
-                    }
-                }
+                matchesByColor[color].push(match);
             }
         });
         
-        verticalMatches.forEach(verticalMatch => {
-            if (verticalMatch.length === 5 && allowBonusBoxes) {
-                // Handle 5-jewel match with white bonus box
-                const centerRow = verticalMatch.startRow + 2;
-                const centerJewel = document.querySelector(`[data-row="${centerRow}"][data-col="${verticalMatch.col}"]`);
-                
-                if (centerJewel && !visited.has(`${centerRow}-${verticalMatch.col}`)) {
-                    bonusBoxes.push({ row: centerRow, col: verticalMatch.col, type: 'white' });
-                    visited.add(`${centerRow}-${verticalMatch.col}`);
-                }
-                
-                // Add all 5 jewels to matches EXCEPT the center (bonus box)
-                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
-                    const key = `${r}-${verticalMatch.col}`;
-                    if (!visited.has(key) && r !== centerRow) {
-                        matches.push({ row: r, col: verticalMatch.col });
-                        visited.add(key);
-                    }
-                }
-            } else {
-                // Regular 3, 4, or 5 jewel match (no bonus box)
-                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
-                    const key = `${r}-${verticalMatch.col}`;
-                    if (!visited.has(key)) {
-                        matches.push({ row: r, col: verticalMatch.col });
-                        visited.add(key);
-                    }
-                }
-            }
-        });
-        
-        return { matches, bonusBoxes };
+        return { matches, bonusBoxes, matchesByColor };
     }
 
     animateSwap(row1, col1, row2, col2, callback) {
@@ -931,26 +1638,34 @@ export class Scene {
                 jewel2.style.left = `${this.gridPadding + col1 * (this.jewelSize + this.jewelGap)}px`;
                 jewel2.style.top = `${this.gridPadding + row1 * (this.jewelSize + this.jewelGap)}px`;
                 
-                // Make sure the background colors are visible
-                jewel1.style.backgroundColor = this.jewelColors[this.jewelLetters.indexOf(jewel1.dataset.color)];
-                jewel2.style.backgroundColor = this.jewelColors[this.jewelLetters.indexOf(jewel2.dataset.color)];
+                // Make sure the jewel images are properly set
+                const jewel1Image = jewel1.querySelector('img');
+                const jewel2Image = jewel2.querySelector('img');
+                if (jewel1Image) {
+                    jewel1Image.src = `src/images/jewel_${jewel1.dataset.color}.png`;
+                }
+                if (jewel2Image) {
+                    jewel2Image.src = `src/images/jewel_${jewel2.dataset.color}.png`;
+                }
                 
-                // Don't set isAnimating = false here - let the callback chain handle it
-                callback();
+                // Small delay to ensure DOM updates complete before callback
+                setTimeout(() => {
+                    callback();
+                }, 10);
             }
         });
         
         tl.to(jewel1, {
             x: translateX,
             y: translateY,
-            duration: 0.3,
-            ease: "back.inOut(1.2)"
+            duration: 0.15,
+            ease: this.jewelEasing
         }, 0)
         .to(jewel2, {
             x: -translateX,
             y: -translateY,
-            duration: 0.3,
-            ease: "back.inOut(1.2)"
+            duration: 0.15,
+            ease: this.jewelEasing
         }, 0);
     }
 
@@ -968,48 +1683,150 @@ export class Scene {
         const tl = gsap.timeline({
             onComplete: () => {
                 // Set isAnimating = false after invalid move feedback completes
-                this.isAnimating = false;
+                this.setAnimatingFalse();
             }
         });
         
         if (isHorizontal) {
-            tl.to([jewel1, jewel2], { x: 5, duration: 0.05, ease: "power2.out" })
-              .to([jewel1, jewel2], { x: -5, duration: 0.05, ease: "power2.out" })
-              .to([jewel1, jewel2], { x: 3, duration: 0.05, ease: "power2.out" })
-              .to([jewel1, jewel2], { x: 0, duration: 0.05, ease: "power2.out" });
+            tl.to([jewel1, jewel2], { x: 5, duration: 0.05, ease: this.jewelEasing })
+              .to([jewel1, jewel2], { x: -5, duration: 0.05, ease: this.jewelEasing })
+              .to([jewel1, jewel2], { x: 3, duration: 0.05, ease: this.jewelEasing })
+              .to([jewel1, jewel2], { x: 0, duration: 0.05, ease: this.jewelEasing });
         } else {
-            tl.to([jewel1, jewel2], { y: 5, duration: 0.05, ease: "power2.out" })
-              .to([jewel1, jewel2], { y: -5, duration: 0.05, ease: "power2.out" })
-              .to([jewel1, jewel2], { y: 3, duration: 0.05, ease: "power2.out" })
-              .to([jewel1, jewel2], { y: 0, duration: 0.05, ease: "power2.out" });
+            tl.to([jewel1, jewel2], { y: 5, duration: 0.05, ease: this.jewelEasing })
+              .to([jewel1, jewel2], { y: -5, duration: 0.05, ease: this.jewelEasing })
+              .to([jewel1, jewel2], { y: 3, duration: 0.05, ease: this.jewelEasing })
+              .to([jewel1, jewel2], { y: 0, duration: 0.05, ease: this.jewelEasing });
         }
     }
 
-    processMatches(bonusBoxesFromPrevious = []) {
+    processMatches(bonusBoxesFromPrevious = [], isCascade = false) {
 
         
         // CRITICAL: Sync the grid before finding matches
         this.syncInternalGridFromDOM();
         
-        const { matches, bonusBoxes } = this.findMatches(true); // No bonus boxes in cascade matches
+        const { matches, bonusBoxes, matchesByColor } = this.findMatches(true); // No bonus boxes in cascade matches
         
         if (matches.length === 0) {
+            // Reset multiplier when no matches are found
+            this.resetMultiplier();
             // Don't set isAnimating = false here - let the caller handle it
             return;
         }
         
         // Set animating to true when processing matches
-        this.isAnimating = true;
+        this.setAnimatingTrue();
         
-        const baseScore = matches.length * 10;
-        this.score += baseScore;
+        // Process matches by color for proper scoring
+        let totalScore = 0;
+        
+        // Apply multiplier (use saved multiplier for cascade consistency)
+        const multiplierToUse = isCascade ? this.savedMultiplier : this.scoreMultiplier;
+        
+        // Play match sound based on multiplier
+        if (!isCascade) {
+            const matchSoundIndex = Math.min(Math.floor(multiplierToUse * 2), 10);
+            const matchSoundName = `match${matchSoundIndex}`;
+            this.e.s.p(matchSoundName);
+            
+            // Create subtle glow effects for matches (moved to findMatches where jewels are marked as cleared)
+        } else {
+            // Play cascade sound for cascade matches
+            this.e.s.p("jewel_cascade");
+        }
+        
+        // Score each color group separately
+        Object.keys(matchesByColor).forEach(color => {
+            const colorMatches = matchesByColor[color];
+            const matchLength = colorMatches.length;
+            
+            // Calculate base score based on match length
+            let baseScore = 0;
+            if (matchLength === 3) {
+                baseScore = 100;
+                this.match3Count++;
+            } else if (matchLength === 4) {
+                baseScore = 150;
+                this.match4Count++;
+            } else if (matchLength === 5) {
+                baseScore = 200;
+                this.match5Count++;
+            }
+            
+            // Apply multiplier
+            const finalScore = baseScore * multiplierToUse;
+            totalScore += finalScore;
+            
+            // Track multiplier value for averaging
+            this.multiplierValues.push(multiplierToUse);
+            
+            console.log(`SCORE: +${finalScore} (${color} jewels: ${matchLength} match: ${baseScore} × ${multiplierToUse}x ${isCascade ? 'saved' : 'current'} multiplier)`);
+            
+            // Calculate center position of this match group for single score popup
+            let centerX = 0;
+            let centerY = 0;
+            let validPositions = 0;
+            
+            colorMatches.forEach(match => {
+                const jewelElement = document.querySelector(`[data-row="${match.row}"][data-col="${match.col}"]`);
+                if (jewelElement) {
+                    const rect = jewelElement.getBoundingClientRect();
+                    centerX += rect.left + rect.width / 2;
+                    centerY += rect.top + rect.height / 2;
+                    validPositions++;
+                }
+            });
+            
+            if (validPositions > 0) {
+                centerX /= validPositions;
+                centerY /= validPositions;
+                
+                // Show single score popup at center of match group
+                this.showScorePopup(finalScore, [{ x: centerX, y: centerY }]);
+            }
+        });
+        
+        // Add total score to player's score
+        this.score += totalScore;
         this.updateScoreDisplay();
-        this.showScorePopup(baseScore);
+        
+        // Only increase multiplier for non-cascade matches (AFTER scoring is done)
+        if (!isCascade) {
+            this.increaseMultiplier();
+            this.lastMatchTime = Date.now();
+        }
+        
+        // Score bonus boxes created in this match
+        bonusBoxes.forEach(bonusBox => {
+            let bonusScore = 0;
+            if (bonusBox.type === 'white') {
+                bonusScore = 400;
+            } else if (bonusBox.type === 'L-bonus') {
+                bonusScore = 250;
+            }
+            
+            if (bonusScore > 0) {
+                const finalBonusScore = bonusScore * multiplierToUse;
+                this.score += finalBonusScore;
+                console.log(`SCORE: +${finalBonusScore} (${bonusBox.type} bonus box created: ${bonusScore} × ${multiplierToUse}x ${isCascade ? 'saved' : 'current'} multiplier)`);
+                this.updateScoreDisplay();
+                
+                // Show score popup for bonus box creation
+                const bonusElement = document.querySelector(`[data-row="${bonusBox.row}"][data-col="${bonusBox.col}"]`);
+                if (bonusElement) {
+                    const rect = bonusElement.getBoundingClientRect();
+                    const position = {
+                        x: rect.left + rect.width / 2,
+                        y: rect.top + rect.height / 2
+                    };
+                    this.showScorePopup(finalBonusScore, [position]);
+                }
+            }
+        });
         
         // Combine bonus boxes from current matches and previous ones
         const allBonusBoxes = [...bonusBoxesFromPrevious, ...bonusBoxes];
-        
-
         
         this.animateClearMatches(matches, allBonusBoxes, () => {
             this.handleBlockFallingAfterMatch(matches, allBonusBoxes);
@@ -1020,25 +1837,55 @@ export class Scene {
         const elements = [];
         const bonusBoxElements = [];
         
-        // First, handle bonus boxes - convert them to white or grey jewels
+        // First, handle bonus boxes - convert them to white or L-bonus jewels
         bonusBoxes.forEach(bonusBox => {
 
-            console.log("bonusBox1");
+            // console.log("bonusBox1");
 
             const element = document.querySelector(`[data-row="${bonusBox.row}"][data-col="${bonusBox.col}"]`);
             if (element) {
-                console.log("bonusBox2");
+                // console.log("bonusBox2");
                 //console.log(`Converting to ${bonusBox.type} bonus box: [${bonusBox.row},${bonusBox.col}]`);
                 bonusBoxElements.push(element);
                 
-                // Convert to appropriate color and flag as new bonus box
+                // Convert to appropriate image and flag as new bonus box
                 if (bonusBox.type === 'white') {
-                    element.style.backgroundColor = '#FFFFFF';
+                    // Remove any existing background color
+                    element.style.backgroundColor = '';
                     element.dataset.color = 'w';
-                } else if (bonusBox.type === 'grey') {
-                    console.log("bonusBox3");
-                    element.style.backgroundColor = '#808080';
-                    element.dataset.color = 'g';
+                    
+                    // Update the jewel image
+                    const existingImage = element.querySelector('img');
+                    if (existingImage) {
+                        existingImage.src = 'src/images/jewel_w.png';
+                        // Add glowing tween to new bonus box
+                        gsap.to(existingImage, {
+                            filter: "brightness(2.5)",
+                            duration: 1.5,
+                            ease: "power2.inOut",
+                            yoyo: true,
+                            repeat: -1
+                        });
+                    }
+                } else if (bonusBox.type === 'L-bonus') {
+                    // console.log("bonusBox3");
+                    // Remove any existing background color
+                    element.style.backgroundColor = '';
+                    element.dataset.color = 'l';
+                    
+                    // Update the jewel image
+                    const existingImage = element.querySelector('img');
+                    if (existingImage) {
+                        existingImage.src = 'src/images/jewel_l.png';
+                        // Add glowing tween to new bonus box
+                        gsap.to(existingImage, {
+                            filter: "brightness(2.5)",
+                            duration: 1.5,
+                            ease: "power2.inOut",
+                            yoyo: true,
+                            repeat: -1
+                        });
+                    }
                 }
                 
                 element.dataset.bonusBox = 'true';
@@ -1082,6 +1929,9 @@ export class Scene {
             element.dataset.void = 'true'; // Mark as void so it's not counted in sync
         });
         
+        // Create subtle glow effects for matches (call here when jewels are marked as cleared)
+        this.createMatchGlowEffects();
+        
         // Update the grid (only for cleared elements, not bonus boxes)
         elements.forEach(element => {
             const row = parseInt(element.dataset.row);
@@ -1098,8 +1948,8 @@ export class Scene {
             if (row >= 0 && row < this.GRID_SIZE && col >= 0 && col < this.GRID_SIZE) {
                 if (element.dataset.color === 'w') {
                     this.grid[row][col] = 5; // White jewel index
-                } else if (element.dataset.color === 'g') {
-                    this.grid[row][col] = 6; // Grey jewel index
+                } else if (element.dataset.color === 'l') {
+                    this.grid[row][col] = 6; // L-bonus jewel index
                 }
             }
         });
@@ -1118,7 +1968,7 @@ export class Scene {
             rotation: 360,
             scale: 0,
             duration: 0.25,
-            ease: "power2.out",
+            ease: this.jewelEasing,
             transformOrigin: "center center"
         }, 0); // Start immediately
         }
@@ -1187,7 +2037,7 @@ export class Scene {
                 const animation = gsap.to(bonusBoxElement, {
                     top: targetTop,
                     duration: 0.3,
-                    ease: "sine.out"
+                    ease: this.jewelEasing
                 });
                 
                 animations.push(animation);
@@ -1209,8 +2059,8 @@ export class Scene {
                     if (update.newRow >= 0 && update.newRow < this.GRID_SIZE && update.col >= 0 && update.col < this.GRID_SIZE) {
                         // Determine the correct grid value based on the bonus box color
                         let gridValue;
-                        if (update.element.dataset.color === 'g') {
-                            gridValue = 6; // Grey jewel index
+                        if (update.element.dataset.color === 'l') {
+                            gridValue = 6; // L-bonus jewel index
                         } else {
                             gridValue = 5; // White jewel index
                         }
@@ -1304,7 +2154,7 @@ export class Scene {
 
 
         // Start block falling animation immediately
-        this.isAnimating = true;
+        this.setAnimatingTrue();
         this.animateAllBlocksToFinalPositions(allBlocksToMove);
     }
     
@@ -1346,7 +2196,7 @@ export class Scene {
             if (!blockAtCheckRow || blockAtCheckRow.dataset.cleared === 'true' || blockAtCheckRow.dataset.void === 'true') {
                 spacesToFall++;
             }
-            // Note: Bonus boxes (both white 'w' and grey 'g') that are NOT cleared are treated as filled spaces
+            // Note: Bonus boxes (both white 'w' and L-bonus 'l') that are NOT cleared are treated as filled spaces
             // and will prevent blocks from falling through them
         }
         return spacesToFall;
@@ -1354,7 +2204,7 @@ export class Scene {
     
     createNewBlock(col, jewelType, stackIndex) {
 
-        console.log("createNewBlock");
+        // console.log("createNewBlock");
 
         const gridElement = document.getElementById('jewelGrid');
         
@@ -1365,10 +2215,31 @@ export class Scene {
         jewelElement.dataset.color = this.jewelLetters[jewelType];
         jewelElement.dataset.isNew = 'true';
         jewelElement.dataset.stackIndex = stackIndex;
-        jewelElement.style.backgroundColor = this.jewelColors[jewelType];
         jewelElement.style.position = 'absolute';
         jewelElement.style.zIndex = '200';
         jewelElement.style.opacity = '1';
+        
+        // Create and add the jewel image
+        const jewelImage = document.createElement('img');
+        jewelImage.src = `src/images/jewel_${this.jewelLetters[jewelType]}.png`;
+        jewelImage.style.width = '100%';
+        jewelImage.style.height = '100%';
+        jewelImage.style.objectFit = 'contain';
+        jewelImage.style.pointerEvents = 'none';
+        jewelImage.style.display = 'block';
+        jewelElement.appendChild(jewelImage);
+        
+        // Add glowing tween if this is a bonus box
+        if (jewelType === 5 || jewelType === 6) {
+            jewelElement.dataset.bonusBox = 'true';
+            gsap.to(jewelImage, {
+                filter: "brightness(2.5)",
+                duration: 1.5,
+                ease: "power2.inOut",
+                yoyo: true,
+                repeat: -1
+            });
+        }
         
         // Calculate the left position based on column
         const leftPosition = this.gridPadding + col * (this.jewelSize + this.jewelGap);
@@ -1455,14 +2326,14 @@ export class Scene {
         // this.ensureDebugNumbersExist();
         
         const allJewels = document.querySelectorAll('.jewel');
-        console.log(`countBlockBelow: Found ${allJewels.length} jewels to process`);
+        // console.log(`countBlockBelow: Found ${allJewels.length} jewels to process`);
         
         for (let i = 0; i < allJewels.length; i++) {
             const jewel = allJewels[i];
             
             // Skip eliminated or cleared blocks
             if (jewel.dataset.cleared === 'true' || jewel.dataset.void === 'true') {
-                console.log(`countBlockBelow: Skipping cleared/void jewel ${i}`);
+                // console.log(`countBlockBelow: Skipping cleared/void jewel ${i}`);
                 continue;
             }
             
@@ -1552,8 +2423,8 @@ export class Scene {
                 // Animate the block to its target position
             const animation = gsap.to(block.element, {
                 top: targetTop,
-                duration: 0.2, // 4x faster (0.8 / 4 = 0.2)
-                ease: "sine.out"
+                duration: 0.1, // 8x faster (0.8 / 8 = 0.1)
+                ease: this.jewelEasing
             });
                 
                 animations.push(animation);
@@ -1607,10 +2478,10 @@ export class Scene {
             // this.createGridOverlay(); // Debug grid disabled
             
             // COMPLETE CLEANUP AND VERIFICATION
-            // Count all jewels to verify we have exactly 81
+            // Count all jewels to verify we have exactly 64
             const finalJewels = document.querySelectorAll('.jewel');
             
-            if (finalJewels.length !== 81) {
+            if (finalJewels.length !== 64) {
                 // Grid validation failed - this should not happen in normal operation
             }
             
@@ -1620,7 +2491,7 @@ export class Scene {
                 const col = parseInt(jewel.dataset.col);
                 const color = jewel.dataset.color;
                 
-                if (row < 0 || row >= 9 || col < 0 || col >= 9) {
+                if (row < 0 || row >= 8 || col < 0 || col >= 8) {
                     // Invalid position - this should not happen
                 }
                 if (!color) {
@@ -1751,12 +2622,12 @@ export class Scene {
         const { matches, bonusBoxes } = this.findMatches(false); // No bonus boxes in cascade matches
         
         if (matches.length > 0) {
-            this.processMatches(bonusBoxes);
+            this.processMatches(bonusBoxes, true); // true = isCascade
         } else {
             // Run repair function at the end of turn
             this.repairGrid();
             // Since repairGrid is commented out, set isAnimating = false here
-            this.isAnimating = false;
+            this.setAnimatingFalse();
         }
     }
     
@@ -1774,46 +2645,522 @@ export class Scene {
             delete bonusBox.dataset.newBonusBox;
         });
         
-        this.isAnimating = false;
+        this.setAnimatingFalse();
     }
 
-    showScorePopup(points) {
-        const popup = document.getElementById('scorePopup');
-        if (popup) {
+    showScorePopup(points, jewelPositions = []) {
+        // Create individual popups for each jewel position
+        jewelPositions.forEach(position => {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
             popup.textContent = `+${points}`;
-            popup.style.opacity = '1';
-            popup.style.transform = 'translate(-50%, -50%) scale(1.2)';
             
+            // Determine color class based on points
+            if (points >= 100 && points < 200) {
+                popup.classList.add('score-green');
+            } else if (points >= 200 && points < 500) {
+                popup.classList.add('score-blue');
+            } else if (points >= 500 && points < 1000) {
+                popup.classList.add('score-orange');
+            } else if (points >= 1000) {
+                popup.classList.add('score-red');
+            }
+            
+            // Position at the jewel location with perfect centering
+            popup.style.left = position.x + 'px';
+            popup.style.top = position.y + 'px';
+            popup.style.transform = 'translate(-50%, -50%)';
+            
+            document.body.appendChild(popup);
+            
+            // Animate: fade out in 2 seconds, move up 10px
             gsap.to(popup, {
                 opacity: 0,
-                y: "-=50",
-                scale: 1,
-                duration: 1,
+                y: -10,
+                duration: 2,
+                ease: "power2.out",
+                onComplete: () => {
+                    popup.remove();
+                }
+            });
+        });
+    }
+    
+    createExplosionEffect(centerRow, centerCol, jewelsToClear) {
+        // Get the actual jewel element to get its exact position
+        const jewelElement = document.querySelector(`[data-row="${centerRow}"][data-col="${centerCol}"]`);
+        let centerX, centerY;
+        
+        if (jewelElement) {
+            const rect = jewelElement.getBoundingClientRect();
+            centerX = rect.left + rect.width / 2;
+            centerY = rect.top + rect.height / 2;
+        } else {
+            // Fallback to calculated position if jewel element not found
+            centerX = (this.gridPadding + centerCol * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+            centerY = (this.gridPadding + centerRow * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+        }
+        
+        // Create explosion container
+        const explosionContainer = document.createElement('div');
+        explosionContainer.className = 'explosion-container';
+        explosionContainer.style.position = 'fixed';
+        explosionContainer.style.left = `${centerX}px`;
+        explosionContainer.style.top = `${centerY}px`;
+        explosionContainer.style.transform = 'translate(-50%, -50%)';
+        explosionContainer.style.zIndex = '9999';
+        explosionContainer.style.pointerEvents = 'none';
+        
+        document.body.appendChild(explosionContainer);
+        
+        // Create multiple explosion rings
+        for (let ring = 0; ring < 3; ring++) {
+            const ringElement = document.createElement('div');
+            ringElement.className = 'explosion-ring';
+            ringElement.style.position = 'absolute';
+            ringElement.style.width = '0px';
+            ringElement.style.height = '0px';
+            ringElement.style.border = `2px solid #FFD700`;
+            ringElement.style.borderRadius = '50%';
+            ringElement.style.left = '50%';
+            ringElement.style.top = '50%';
+            ringElement.style.transform = 'translate(-50%, -50%)';
+            ringElement.style.opacity = '0.8';
+            
+            explosionContainer.appendChild(ringElement);
+            
+            // Animate each ring expanding
+            gsap.to(ringElement, {
+                width: `${(ring + 1) * 80}px`,
+                height: `${(ring + 1) * 80}px`,
+                opacity: 0,
+                duration: 0.6,
+                delay: ring * 0.1,
                 ease: "power2.out"
             });
         }
+        
+        // Create particle burst
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'explosion-particle';
+            particle.style.position = 'absolute';
+            particle.style.width = '4px';
+            particle.style.height = '4px';
+            particle.style.backgroundColor = '#FFD700';
+            particle.style.borderRadius = '50%';
+            particle.style.left = '50%';
+            particle.style.top = '50%';
+            particle.style.transform = 'translate(-50%, -50%)';
+            
+            explosionContainer.appendChild(particle);
+            
+            // Random direction and distance for each particle
+            const angle = (i / 20) * Math.PI * 2;
+            const distance = 60 + Math.random() * 40;
+            const endX = Math.cos(angle) * distance;
+            const endY = Math.sin(angle) * distance;
+            
+            // Animate particle flying out
+            gsap.to(particle, {
+                x: endX,
+                y: endY,
+                opacity: 0,
+                scale: 0,
+                duration: 0.8,
+                delay: Math.random() * 0.2,
+                ease: "power2.out"
+            });
+        }
+        
+        // Create shockwave effect
+        const shockwave = document.createElement('div');
+        shockwave.className = 'shockwave';
+        shockwave.style.position = 'absolute';
+        shockwave.style.width = '0px';
+        shockwave.style.height = '0px';
+        shockwave.style.border = `3px solid rgba(255, 215, 0, 0.6)`;
+        shockwave.style.borderRadius = '50%';
+        shockwave.style.left = '50%';
+        shockwave.style.top = '50%';
+        shockwave.style.transform = 'translate(-50%, -50%)';
+        
+        explosionContainer.appendChild(shockwave);
+        
+        // Animate shockwave
+        gsap.to(shockwave, {
+            width: '200px',
+            height: '200px',
+            opacity: 0,
+            duration: 0.5,
+            ease: "power2.out"
+        });
+        
+        // Create flash effect
+        const flash = document.createElement('div');
+        flash.className = 'explosion-flash';
+        flash.style.position = 'absolute';
+        flash.style.width = '100px';
+        flash.style.height = '100px';
+        flash.style.backgroundColor = '#FFD700';
+        flash.style.borderRadius = '50%';
+        flash.style.left = '50%';
+        flash.style.top = '50%';
+        flash.style.transform = 'translate(-50%, -50%)';
+        flash.style.filter = 'blur(10px)';
+        
+        explosionContainer.appendChild(flash);
+        
+        // Animate flash
+        gsap.to(flash, {
+            scale: 2,
+            opacity: 0,
+            duration: 0.4,
+            ease: "power2.out"
+        });
+        
+        // Remove explosion container after animation
+        gsap.delayedCall(1.0, () => {
+            explosionContainer.remove();
+        });
+    }
+    
+    createWhiteBonusExplosion(centerRow, centerCol, jewelColor) {
+        console.log(`createWhiteBonusExplosion called with: centerRow=${centerRow}, centerCol=${centerCol}, jewelColor=${jewelColor}`);
+        console.log(`jewelColor type: ${typeof jewelColor}, value: "${jewelColor}"`);
+        
+        // Get the actual jewel element to get its exact position
+        const jewelElement = document.querySelector(`[data-row="${centerRow}"][data-col="${centerCol}"]`);
+        let centerX, centerY;
+        
+        if (jewelElement) {
+            const rect = jewelElement.getBoundingClientRect();
+            centerX = rect.left + rect.width / 2;
+            centerY = rect.top + rect.height / 2;
+        } else {
+            // Fallback to calculated position if jewel element not found
+            centerX = (this.gridPadding + centerCol * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+            centerY = (this.gridPadding + centerRow * (this.jewelSize + this.jewelGap)) + (this.jewelSize / 2);
+        }
+        
+        // Color mapping for different jewel types (using actual jewel letters) - More saturated colors
+        const colorMap = {
+            'r': '#FF0000', // Bright Red
+            'g': '#00FF00', // Bright Green
+            'b': '#0080FF', // Bright Blue
+            'o': '#FF8000', // Bright Orange
+            'p': '#FF00FF'  // Bright Magenta
+        };
+        
+        const explosionColor = colorMap[jewelColor] || '#FFFFFF';
+        console.log(`White bonus explosion color: ${explosionColor} for jewel color: ${jewelColor}`);
+        console.log(`Color map lookup: jewelColor=${jewelColor}, mapped to ${explosionColor}`);
+        console.log(`Available colorMap keys: ${Object.keys(colorMap)}`);
+        
+        // Create explosion container
+        const explosionContainer = document.createElement('div');
+        explosionContainer.className = 'white-bonus-explosion';
+        explosionContainer.style.position = 'fixed';
+        explosionContainer.style.left = `${centerX}px`;
+        explosionContainer.style.top = `${centerY}px`;
+        explosionContainer.style.transform = 'translate(-50%, -50%)';
+        explosionContainer.style.zIndex = '9999';
+        explosionContainer.style.pointerEvents = 'none';
+        
+        document.body.appendChild(explosionContainer);
+        
+        // Hexagon layers removed for cleaner effect
+        
+        // Create floating orbs (different from grey box particles) - BIGGER AND MORE
+        for (let i = 0; i < 25; i++) {
+            const orb = document.createElement('div');
+            orb.className = 'floating-orb';
+            orb.style.position = 'absolute';
+            orb.style.width = '16px';
+            orb.style.height = '16px';
+            orb.style.backgroundColor = explosionColor;
+            orb.style.borderRadius = '50%';
+            orb.style.left = '50%';
+            orb.style.top = '50%';
+            orb.style.transform = 'translate(-50%, -50%)';
+            orb.style.boxShadow = `0 0 20px ${explosionColor}`;
+            
+            explosionContainer.appendChild(orb);
+            
+            // Random direction and MASSIVE distance for each orb
+            const angle = (i / 25) * Math.PI * 2;
+            const distance = 120 + Math.random() * 100;
+            const endX = Math.cos(angle) * distance;
+            const endY = Math.sin(angle) * distance;
+            
+            // Animate orb floating out (bigger and more dramatic)
+            gsap.to(orb, {
+                x: endX,
+                y: endY,
+                opacity: 0,
+                scale: 0,
+                duration: 1.2,
+                delay: Math.random() * 0.3,
+                ease: "power2.out"
+            });
+        }
+        
+        // Create energy waves (different from grey box shockwave) - BIGGER AND MORE
+        for (let wave = 0; wave < 4; wave++) {
+            const energyWave = document.createElement('div');
+            energyWave.className = 'energy-wave';
+            energyWave.style.position = 'absolute';
+            energyWave.style.width = '0px';
+            energyWave.style.height = '0px';
+            energyWave.style.border = `6px solid ${explosionColor}`;
+            energyWave.style.borderRadius = '50%';
+            energyWave.style.left = '50%';
+            energyWave.style.top = '50%';
+            energyWave.style.transform = 'translate(-50%, -50%)';
+            energyWave.style.filter = 'blur(3px)';
+            
+            explosionContainer.appendChild(energyWave);
+            
+            // Animate energy waves (MUCH bigger and more dramatic)
+            gsap.to(energyWave, {
+                width: `${400 + wave * 80}px`,
+                height: `${400 + wave * 80}px`,
+                opacity: 0,
+                duration: 1.5,
+                delay: wave * 0.2,
+                ease: "power2.out"
+            });
+        }
+        
+        // Create central burst (different from grey box flash) - BIGGER AND MORE
+        const centralBurst = document.createElement('div');
+        centralBurst.className = 'central-burst';
+        centralBurst.style.position = 'absolute';
+        centralBurst.style.width = '250px';
+        centralBurst.style.height = '250px';
+        centralBurst.style.background = `radial-gradient(circle, ${explosionColor} 0%, transparent 60%)`;
+        centralBurst.style.borderRadius = '50%';
+        centralBurst.style.left = '50%';
+        centralBurst.style.top = '50%';
+        centralBurst.style.transform = 'translate(-50%, -50%)';
+        
+        explosionContainer.appendChild(centralBurst);
+        
+        // Animate central burst (MUCH bigger and more dramatic)
+        gsap.to(centralBurst, {
+            scale: 4,
+            opacity: 0,
+            duration: 1.4,
+            ease: "power3.out"
+        });
+        
+        // Remove explosion container after animation (longer due to bigger effects)
+        gsap.delayedCall(2.0, () => {
+            explosionContainer.remove();
+        });
+    }
+    
+    createEpicBoardExplosion() {
+        console.log("Creating EPIC board-clearing explosion!");
+        
+        // Get the center of the game board
+        const gameContainer = document.getElementById('jewelGameContainer');
+        if (!gameContainer) return;
+        
+        const rect = gameContainer.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // Create epic explosion container
+        const epicContainer = document.createElement('div');
+        epicContainer.className = 'epic-board-explosion';
+        epicContainer.style.position = 'fixed';
+        epicContainer.style.left = `${centerX}px`;
+        epicContainer.style.top = `${centerY}px`;
+        epicContainer.style.transform = 'translate(-50%, -50%)';
+        epicContainer.style.zIndex = '10000';
+        epicContainer.style.pointerEvents = 'none';
+        
+        document.body.appendChild(epicContainer);
+        
+        // Create simplified expanding rings (performance optimized)
+        for (let ring = 0; ring < 3; ring++) {
+            const massiveRing = document.createElement('div');
+            massiveRing.className = 'epic-ring';
+            massiveRing.style.position = 'absolute';
+            massiveRing.style.width = '0px';
+            massiveRing.style.height = '0px';
+            massiveRing.style.border = `4px solid #FFD700`;
+            massiveRing.style.borderRadius = '50%';
+            massiveRing.style.left = '50%';
+            massiveRing.style.top = '50%';
+            massiveRing.style.transform = 'translate(-50%, -50%)';
+            massiveRing.style.opacity = '1';
+            
+            epicContainer.appendChild(massiveRing);
+            
+            // Animate simplified rings expanding
+            gsap.to(massiveRing, {
+                width: `${(ring + 1) * 150}px`,
+                height: `${(ring + 1) * 150}px`,
+                opacity: 0,
+                duration: 1.5,
+                delay: ring * 0.2,
+                ease: "power2.out"
+            });
+        }
+        
+        // Create simplified particle storm (performance optimized)
+        for (let i = 0; i < 20; i++) {
+            const massiveParticle = document.createElement('div');
+            massiveParticle.className = 'epic-particle';
+            massiveParticle.style.position = 'absolute';
+            massiveParticle.style.width = '8px';
+            massiveParticle.style.height = '8px';
+            massiveParticle.style.backgroundColor = '#FFD700';
+            massiveParticle.style.borderRadius = '50%';
+            massiveParticle.style.left = '50%';
+            massiveParticle.style.top = '50%';
+            massiveParticle.style.transform = 'translate(-50%, -50%)';
+            
+            epicContainer.appendChild(massiveParticle);
+            
+            // Simplified direction and distance for each particle
+            const angle = (i / 20) * Math.PI * 2;
+            const distance = 100 + Math.random() * 80;
+            const endX = Math.cos(angle) * distance;
+            const endY = Math.sin(angle) * distance;
+            
+            // Animate simplified particles flying out
+            gsap.to(massiveParticle, {
+                x: endX,
+                y: endY,
+                opacity: 0,
+                scale: 0,
+                duration: 1.8,
+                delay: Math.random() * 0.3,
+                ease: "power2.out"
+            });
+        }
+        
+        // Create simplified shockwave (performance optimized)
+        const massiveShockwave = document.createElement('div');
+        massiveShockwave.className = 'epic-shockwave';
+        massiveShockwave.style.position = 'absolute';
+        massiveShockwave.style.width = '0px';
+        massiveShockwave.style.height = '0px';
+        massiveShockwave.style.border = `6px solid rgba(255, 215, 0, 0.8)`;
+        massiveShockwave.style.borderRadius = '50%';
+        massiveShockwave.style.left = '50%';
+        massiveShockwave.style.top = '50%';
+        massiveShockwave.style.transform = 'translate(-50%, -50%)';
+        
+        epicContainer.appendChild(massiveShockwave);
+        
+        // Animate simplified shockwave
+        gsap.to(massiveShockwave, {
+            width: '600px',
+            height: '600px',
+            opacity: 0,
+            duration: 1.8,
+            ease: "power2.out"
+        });
+        
+        // Create simplified central burst (performance optimized)
+        const massiveBurst = document.createElement('div');
+        massiveBurst.className = 'epic-burst';
+        massiveBurst.style.position = 'absolute';
+        massiveBurst.style.width = '200px';
+        massiveBurst.style.height = '200px';
+        massiveBurst.style.backgroundColor = '#FFD700';
+        massiveBurst.style.borderRadius = '50%';
+        massiveBurst.style.left = '50%';
+        massiveBurst.style.top = '50%';
+        massiveBurst.style.transform = 'translate(-50%, -50%)';
+        
+        epicContainer.appendChild(massiveBurst);
+        
+        // Animate simplified burst
+        gsap.to(massiveBurst, {
+            scale: 3,
+            opacity: 0,
+            duration: 1.5,
+            ease: "power2.out"
+        });
+        
+        // Create simplified screen flash effect (performance optimized)
+        const screenFlash = document.createElement('div');
+        screenFlash.className = 'epic-screen-flash';
+        screenFlash.style.position = 'fixed';
+        screenFlash.style.top = '0';
+        screenFlash.style.left = '0';
+        screenFlash.style.width = '100vw';
+        screenFlash.style.height = '100vh';
+        screenFlash.style.backgroundColor = 'rgba(255, 215, 0, 0.2)';
+        screenFlash.style.pointerEvents = 'none';
+        screenFlash.style.zIndex = '9999';
+        
+        document.body.appendChild(screenFlash);
+        
+        // Animate simplified screen flash
+        gsap.to(screenFlash, {
+            opacity: 0,
+            duration: 1.0,
+            ease: "power2.out"
+        });
+        
+        // Remove epic container after animation
+        gsap.delayedCall(2.2, () => {
+            epicContainer.remove();
+            screenFlash.remove();
+        });
     }
 
     endGame() {
         this.gameOver = true;
         this.gameStarted = false;
         
+        // Play result sound
+        this.e.s.p("jewel_result");
+        
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
         }
         
         const finalDiv = document.getElementById('finalDiv');
-        const scoreDiv2 = document.getElementById('scoreDiv2');
         
-        if (finalDiv && scoreDiv2) {
-            scoreDiv2.textContent = this.score;
-            finalDiv.style.display = 'flex';
+        if (finalDiv) {
+            // Calculate final score breakdown
+            const match3Total = this.match3Count * 100;
+            const match4Total = this.match4Count * 150;
+            const match5Total = this.match5Count * 200;
+            const explosionTotal = this.explosionCount * 250;
+            const bonusBoxTotal = this.bonusBoxCount * 500;
+            const smallClearTotal = this.smallClearCount * 1500;
+            const bigClearTotal = this.bigClearCount * 2000;
             
-            setTimeout(() => {
-                finalDiv.onclick = () => {
-                    this.restartGame();
-                };
-            }, 2000);
+            // Calculate bonus points (total score minus base match scores)
+            const baseMatchScore = match3Total + match4Total + match5Total;
+            const bonusPoints = this.score - baseMatchScore;
+            
+            // Calculate average multiplier
+            const avgMultiplier = this.multiplierValues.length > 0 
+                ? (this.multiplierValues.reduce((sum, val) => sum + val, 0) / this.multiplierValues.length).toFixed(1)
+                : '1.0';
+            
+            // Populate the final score screen with existing HTML elements
+            document.getElementById('finalScoreValue').textContent = this.score;
+            document.getElementById('match3Count').textContent = this.match3Count;
+            document.getElementById('match4Count').textContent = this.match4Count;
+            document.getElementById('match5Count').textContent = this.match5Count;
+            document.getElementById('explosionCount').textContent = this.explosionCount;
+            document.getElementById('bonusBoxCount').textContent = this.bonusBoxCount;
+            document.getElementById('smallClearCount').textContent = this.smallClearCount;
+            document.getElementById('bigClearCount').textContent = this.bigClearCount;
+            document.getElementById('bonusPointsTotal').textContent = bonusPoints;
+            document.getElementById('avgMultiplier').textContent = avgMultiplier;
+            
+            finalDiv.style.display = 'flex';
         }
     }
 
@@ -1824,11 +3171,25 @@ export class Scene {
         }
         
         this.score = 0;
+        this.scoreMultiplier = 1;
+        this.savedMultiplier = 1;
         this.timeLeft = 120;
         this.gameOver = false;
         this.gameStarted = false;
         this.selectedJewel = null;
-        this.isAnimating = false;
+        this.setAnimatingFalse();
+        this.lastMatchTime = 0;
+        this.multiplierResetTimer = 3.0;
+        
+        // Reset tracking variables
+        this.match3Count = 0;
+        this.match4Count = 0;
+        this.match5Count = 0;
+        this.explosionCount = 0;
+        this.bonusBoxCount = 0;
+        this.smallClearCount = 0;
+        this.bigClearCount = 0;
+        this.multiplierValues = [];
         
         this.initializeGrid();
         this.renderGrid();
@@ -1876,10 +3237,10 @@ export class Scene {
                 const colorLetter = gridValue >= 0 ? this.jewelLetters[gridValue] : 'X';
                 cell.textContent = `${row},${col}:${colorLetter}`;
                 
-                // Color the cell based on the jewel color
+                // Color the cell based on the jewel color (for debug overlay only)
                 if (gridValue >= 0) {
                     cell.style.backgroundColor = this.jewelColors[gridValue];
-            } else {
+                } else {
                     cell.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // Red for empty
                 }
                 
@@ -1926,19 +3287,29 @@ export class Scene {
             const frameCounterElement = document.getElementById('frameCounter');
             if (frameCounterElement) {
                 frameCounterElement.textContent = `FPS: ${this.fps}`;
-                console.log(`FPS Updated: ${this.fps}`);
+                // console.log(`FPS Updated: ${this.fps}`);
             } else {
-                console.log('Frame counter element not found!');
+                // console.log('Frame counter element not found!');
             }
         }
     }
 
-    update(){
+    update(e){
         if(this.action==="set up"){
             // Game is set up and running
         }
         
         // Update FPS counter (always run, regardless of game state)
         this.updateFrameCounter();
+        
+        // Update multiplier reset timer only when not animating
+        if (!this.isAnimating && this.multiplierResetTimer > 0) {
+            this.multiplierResetTimer -= this.e.dt;
+            
+            // If timer reaches 0, reset the multiplier
+            if (this.multiplierResetTimer <= 0) {
+                this.resetMultiplier();
+            }
+        }
     }
 }

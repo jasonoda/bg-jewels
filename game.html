@@ -50,8 +50,8 @@
     <div id="feedback">Jewel Match - Drag jewels to swap adjacent pieces</div>
 
     <!-- Additional UI Elements -->
-    <div class="ui" id="levelDiv">LEVEL: 1</div>
-    <div class="ui" id="scoreDiv"></div>
+    <div class="ui" id="levelDiv"></div>
+    <div class="ui" id="scoreDiv">SCORE: 0</div>
     <div class="ui" id="timerDiv">2:30</div>
     <div class="ui" id="frameCounter">FPS: 0</div>
     <div id="scorePopup">+100</div>
@@ -67,8 +67,8 @@
     <div id="startMenu">
         <div id="startMenuContainer">
             <img id="splashImage" src="src/images/splashImage.png" alt="Splash">
-            <div id="playButton">PLAY</div>
-            <div id="instructionsButton">INSTRUCTIONS</div>
+            <!-- <div id="playButton">PLAY</div> -->
+            <!-- <div id="instructionsButton">INSTRUCTIONS</div> -->
         </div>
     </div>
 
@@ -78,18 +78,33 @@
             <div id="instructionsTitle">INSTRUCTIONS</div>
             
             <div id="instructionsText">
-                <div class="instructionLine">Match 3 or more jewels of the same color<br>by swapping adjacent jewels</div>
-
-                <div class="instructionDivider"></div>
-
-                <div class="instructionLine">Drag a jewel to an adjacent position to swap them</div>
-                <div class="instructionDivider"></div>
                 <div class="instructionLine"><b>SCORING:</b></div>
-                <div class="instructionLine">3 jewels = 30 points<br>4 jewels = 48 points<br>5+ jewels = 75+ points</div>
+                <div class="instructionLine">3 jewels = 100 points<br>4 jewels = 150 points<br>5 jewels = 200 points</div>
+                
                 <div class="instructionDivider"></div>
-                <div class="instructionLine">Create cascading matches for bonus points</div>
+                
+                <div class="instructionLine"><b>BONUS BOXES:</b></div>
+                
+                <div class="bonusItem">
+                    <img src="src/images/jewel_w.png" alt="White Bonus Box" class="bonusImage">
+                    <div class="bonusDescription">
+                        Match 5 in a row.<br>Clears jewels of a single color.
+                    </div>
+                </div>
+                
+                <div class="bonusItem">
+                    <img src="src/images/jewel_l.png" alt="Grey Bonus Box" class="bonusImage">
+                    <div class="bonusDescription">
+                        Make an L or T shape match.<br>Creates an explosion.
+                    </div>
+                </div>
+                
                 <div class="instructionDivider"></div>
-                <div class="instructionLine">You have 2 minutes to get the highest score!</div>
+                <div class="instructionLine">2:00 time limit.</div>
+                <div class="instructionDivider"></div>
+                <div class="instructionLine">Match sets to score points.</div>
+                <div class="instructionDivider"></div>
+                <div class="instructionLine">Match faster to raise your score multiplier.</div>
             </div>
             
             <div id="closeInstructionsButton">CLOSE</div>
@@ -98,79 +113,96 @@
 
     <!-- Final Score Screen -->
     <div id="finalDiv">
-        <div id="scoreDiv1">SCORE</div>
-        
-        <div id="scoreBreakdown">
-            <div class="scoreDetail">
-                <div class="scoreItem">
-                    <span class="scoreLabel">21</span>
-                    <div class="progressBar">
-                        <div class="progressFill" id="progress21"></div>
+        <div class="finalScoreOverlay"></div>
+        <div class="finalScoreContent">
+            <div id="finalScoreTitle">FINAL SCORE</div>
+            <div id="finalScoreValue">0</div>
+            
+            <div class="scoreBreakdownContainer">
+                <div class="scoreBreakdownItem">
+                    <div class="breakdownLabel">
+                       MATCH 3
                     </div>
-                    <div class="scoreValueContainer">
-                        <span class="graphScoreValue" id="score21">13</span>
-                    </div>
-                </div>
-                <div class="scoreItem">
-                    <span class="scoreLabel">20</span>
-                    <div class="progressBar">
-                        <div class="progressFill" id="progress20"></div>
-                    </div>
-                    <div class="scoreValueContainer">
-                        <span class="graphScoreValue" id="score20">0</span>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownCount" id="match3Count">0</span>
                     </div>
                 </div>
-                <div class="scoreItem">
-                    <span class="scoreLabel">19</span>
-                    <div class="progressBar">
-                        <div class="progressFill" id="progress19"></div>
+                
+                <div class="scoreBreakdownItem">
+                    <div class="breakdownLabel">
+                        MATCH 4
                     </div>
-                    <div class="scoreValueContainer">
-                        <span class="graphScoreValue" id="score19">0</span>
-                    </div>
-                </div>
-                <div class="scoreItem">
-                    <span class="scoreLabel">18</span>
-                    <div class="progressBar">
-                        <div class="progressFill" id="progress18"></div>
-                    </div>
-                    <div class="scoreValueContainer">
-                        <span class="graphScoreValue" id="score18">0</span>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownCount" id="match4Count">0</span>
                     </div>
                 </div>
-                <div class="scoreItem">
-                    <span class="scoreLabel">17</span>
-                    <div class="progressBar">
-                        <div class="progressFill" id="progress17"></div>
+                
+                <div class="scoreBreakdownItem">
+                    <div class="breakdownLabel">
+                        MATCH 5
                     </div>
-                    <div class="scoreValueContainer">
-                        <span class="graphScoreValue" id="score17">0</span>
-                    </div>
-                </div>
-                <div class="scoreItem">
-                    <span class="scoreLabel">16</span>
-                    <div class="progressBar">
-                        <div class="progressFill" id="progress16"></div>
-                    </div>
-                    <div class="scoreValueContainer">
-                        <span class="graphScoreValue" id="score16">0</span>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownCount" id="match5Count">0</span>
                     </div>
                 </div>
-            </div>
-            <div class="scoreDetail">
-                <span class="bottomScoreLabel">CARD POINTS:</span>
-                <span class="scoreValue" id="cardPoints">0</span>
-            </div>
-            <div class="scoreDetail">
-                <span class="bottomScoreLabel">MULT BONUS:</span>
-                <span class="scoreValue" id="multBonus">0</span>
-            </div>
-            <div class="scoreDetail">
-                <span class="bottomScoreLabel bustText">BUSTS:</span>
-                <span class="scoreValue bustValue" id="bustCount">0</span>
+                
+                <div class="scoreBreakdownItem">
+                    <div class="breakdownLabel">
+                        EXPLOSIONS
+                        <img src="src/images/jewel_l.png" alt="Grey Bonus Box" class="breakdownJewel">
+                    </div>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownCount" id="explosionCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="scoreBreakdownItem">
+                    <div class="breakdownLabel">
+                        BONUS BOX
+                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
+                    </div>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownCount" id="bonusBoxCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="scoreBreakdownItem">
+                    <div class="breakdownLabel">
+                        SMALL BOARD CLEAR
+                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
+                        <img src="src/images/jewel_l.png" alt="Grey Bonus Box" class="breakdownJewel">
+                    </div>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownCount" id="smallClearCount">0
+                    </div>
+                </div>
+                
+                <div class="scoreBreakdownItem">
+                    <div class="breakdownLabel">
+                        BIG BOARD CLEAR
+                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
+                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
+                    </div>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownCount" id="bigClearCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="scoreBreakdownItem totalItem">
+                    <div class="breakdownLabel">BONUS POINTS</div>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownTotal" id="bonusPointsTotal">0</span>
+                    </div>
+                </div>
+                
+                <div class="scoreBreakdownItem totalItem">
+                    <div class="breakdownLabel">AVERAGE BONUS MULT</div>
+                    <div class="breakdownCalculation">
+                        <span class="breakdownTotal" id="avgMultiplier">1.0</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div id="scoreDiv2">0</div>
     </div>
 
     <!-- loading -->
