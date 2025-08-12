@@ -155,50 +155,15 @@ export class Scene {
 
     initializeGrid() {
         this.grid = [];
-        
-        // TEST SCENARIO: Set up the 5-in-a-row pattern that creates both W and L blocks
-        // Pattern:
-        // xxgxx
-        // xxgxx  
-        // xxgxx
-        // xxgxx
-        // ggrgg
-        // xxgxx
-        
-        // Initialize all positions first
-        // Initialize the grid array structure
         for (let row = 0; row < this.GRID_SIZE; row++) {
             this.grid[row] = [];
             for (let col = 0; col < this.GRID_SIZE; col++) {
-                // Default to random non-green blocks
-                const nonGreenTypes = [0, 2, 3, 4]; // red, blue, orange, purple
-                this.grid[row][col] = nonGreenTypes[Math.floor(Math.random() * nonGreenTypes.length)];
+                this.grid[row][col] = Math.floor(Math.random() * this.JEWEL_TYPES);
             }
         }
         
-        // Set the 5th row (index 4) to create the 5-match: ggrgg
-        // this.grid[4][0] = 1; // Green (type 1 = green)
-        // this.grid[4][1] = 1; // Green (type 1 = green)
-        // this.grid[4][2] = 0; // Red (type 0 = red) - the 'r' in the middle
-        // this.grid[4][3] = 1; // Green (type 1 = green)
-        // this.grid[4][4] = 1; // Green (type 1 = green)
-
-        // this.grid[3][2] = 1; // Green (type 1 = green)
-        // this.grid[2][2] = 1; // Green (type 1 = green)
-        // this.grid[1][2] = 1; // Green (type 1 = green)
-
-        // this.grid[5][2] = 1; // Green (type 1 = green)
-        
-        // console.log('5th row values:', this.grid[4]);
-        // console.log('jewelLetters:', this.jewelLetters);
-        // console.log('5th row should be:', this.grid[4].map(val => this.jewelLetters[val]));
-        
-        
-        // console.log('Grid after setting test scenario:', JSON.stringify(this.grid));
-        
-        // Remove initial matches (but preserve our test scenario)
+        // Remove initial matches
         this.removeInitialMatches();
-        console.log('Grid after removeInitialMatches:', JSON.stringify(this.grid));
     }
 
     removeInitialMatches() {
@@ -212,10 +177,9 @@ export class Scene {
             for (let row = 0; row < this.GRID_SIZE; row++) {
                 for (let col = 0; col < this.GRID_SIZE; col++) {
                     // Skip the bonus box positions
-                    // if ((row === 3 && col === 3) || (row === 3 && col === 4)) continue;
+                    if ((row === 3 && col === 3) || (row === 3 && col === 4)) continue;
                     
-                    // // Skip our test scenario (5th row and middle columns)
-                    // if (row === 4 || col === 2 || col === 3) continue;
+
                     
                     if (this.wouldCreateMatch(row, col, this.grid[row][col])) {
                         this.grid[row][col] = Math.floor(Math.random() * this.JEWEL_TYPES);
@@ -680,8 +644,8 @@ export class Scene {
         const baseTime = 2.1;
         const timeReduction = this.scoreMultiplier * 0.4;
         this.multiplierResetTimer = baseTime - timeReduction; // Minimum 0.5 seconds
-        if(this.multiplierResetTimer<.85){
-            this.multiplierResetTimer = 0.85;
+        if(this.multiplierResetTimer < 1) {
+            this.multiplierResetTimer = 1;
         }
     }
 
@@ -1443,83 +1407,9 @@ export class Scene {
                 }
             }
         }
-
-        this.found5=false;
-         // Process regular matches
-         horizontalMatches.forEach(horizontalMatch => {
-            if (horizontalMatch.length === 5 && allowBonusBoxes) {
-                // Handle 5-jewel match with white bonus box
-                const centerCol = horizontalMatch.startCol + 2;
-                const centerJewel = document.querySelector(`[data-row="${horizontalMatch.row}"][data-col="${centerCol}"]`);
-                
-                if (centerJewel && !visited.has(`${horizontalMatch.row}-${centerCol}`)) {
-                    bonusBoxes.push({ row: horizontalMatch.row, col: centerCol, type: 'white' });
-                    
-                    // Play jewel make sound for white bonus creation
-                    this.e.s.p("jewel_make");
-                    this.found5=true;
-                    
-                    visited.add(`${horizontalMatch.row}-${centerCol}`);
-                }
-                
-                // Add all 5 jewels to matches EXCEPT the center (bonus box)
-                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
-                    const key = `${horizontalMatch.row}-${c}`;
-                    if (!visited.has(key) && c !== centerCol) {
-                        matches.push({ row: horizontalMatch.row, col: c });
-                        visited.add(key);
-                    }
-                }
-            } else {
-                // Regular 3, 4, or 5 jewel match (no bonus box)
-                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
-                    const key = `${horizontalMatch.row}-${c}`;
-                    if (!visited.has(key)) {
-                        matches.push({ row: horizontalMatch.row, col: c });
-                        visited.add(key);
-                    }
-                }
-            }
-        });
         
-        verticalMatches.forEach(verticalMatch => {
-            if (verticalMatch.length === 5 && allowBonusBoxes) {
-                // Handle 5-jewel match with white bonus box
-                const centerRow = verticalMatch.startRow + 2;
-                const centerJewel = document.querySelector(`[data-row="${centerRow}"][data-col="${verticalMatch.col}"]`);
-                
-                if (centerJewel && !visited.has(`${centerRow}-${verticalMatch.col}`)) {
-                    bonusBoxes.push({ row: centerRow, col: verticalMatch.col, type: 'white' });
-                    
-                    // Play jewel make sound for white bonus creation
-                    this.e.s.p("jewel_make");
-                    this.found5=true;
-                    
-                    visited.add(`${centerRow}-${verticalMatch.col}`);
-                }
-                
-                // Add all 5 jewels to matches EXCEPT the center (bonus box)
-                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
-                    const key = `${r}-${verticalMatch.col}`;
-                    if (!visited.has(key) && r !== centerRow) {
-                        matches.push({ row: r, col: verticalMatch.col });
-                        visited.add(key);
-                    }
-                }
-            } else {
-                // Regular 3, 4, or 5 jewel match (no bonus box)
-                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
-                    const key = `${r}-${verticalMatch.col}`;
-                    if (!visited.has(key)) {
-                        matches.push({ row: r, col: verticalMatch.col });
-                        visited.add(key);
-                    }
-                }
-            }
-        });
-
-        // Check for L-shaped matches (before processing regular matches)
-        if (allowBonusBoxes && this.found5===false) {
+        // Check for L-shaped matches BEFORE processing regular matches
+        if (allowBonusBoxes) {
             horizontalMatches.forEach((horizontalMatch, hIndex) => {
                 verticalMatches.forEach((verticalMatch, vIndex) => {
                     // Check for L-shape: vertical line intersects with horizontal line at one end
@@ -1566,27 +1456,115 @@ export class Scene {
                         // Check if this intersection point isn't already a bonus box
                         const intersectionJewel = document.querySelector(`[data-row="${intersectionRow}"][data-col="${intersectionCol}"]`);
                         if (intersectionJewel && intersectionJewel.dataset.bonusBox !== 'true') {
-                                                    console.log("Creating L-bonus box at intersection");
-                        
-                        // Follow the EXACT same steps as white bonus box creation:
-                        // 1. Add to bonusBoxes array
-                        bonusBoxes.push({ row: intersectionRow, col: intersectionCol, type: 'L-bonus' });
-                        
-                        // Play jewel make sound for L-bonus creation
-                        this.e.s.p("jewel_make");
+                            // Check if there are any 5-in-a-row matches that would conflict
+                            let hasConflict = false;
+                            horizontalMatches.forEach(match => {
+                                if (match.length === 5) {
+                                    const centerCol = match.startCol + 2;
+                                    if (match.row === intersectionRow && centerCol === intersectionCol) {
+                                        hasConflict = true;
+                                    }
+                                }
+                            });
+                            verticalMatches.forEach(match => {
+                                if (match.length === 5) {
+                                    const centerRow = match.startRow + 2;
+                                    if (match.col === intersectionCol && centerRow === intersectionRow) {
+                                        hasConflict = true;
+                                    }
+                                }
+                            });
                             
-                            // 2. Mark as visited to prevent duplicate processing
-                            visited.add(intersectionKey);
-                            
-                            // 3. Continue processing regular matches (don't return early)
-                            console.log("L-shape detected - continuing to process regular matches");
+                            if (!hasConflict) {
+                                console.log("Creating L-bonus box at intersection");
+                                
+                                // Add to bonusBoxes array
+                                bonusBoxes.push({ row: intersectionRow, col: intersectionCol, type: 'L-bonus' });
+                                
+                                // Play jewel make sound for L-bonus creation
+                                this.e.s.p("jewel_make");
+                                
+                                // Mark as visited to prevent duplicate processing
+                                visited.add(intersectionKey);
+                            } else {
+                                console.log("L-shape conflicts with 5-in-a-row, skipping L-bonus creation");
+                            }
                         }
                     }
                 });
             });
         }
         
-       
+        // Process regular matches FIRST (including 5-in-a-row)
+        horizontalMatches.forEach(horizontalMatch => {
+            if (horizontalMatch.length === 5 && allowBonusBoxes) {
+                // Handle 5-jewel match with white bonus box
+                const centerCol = horizontalMatch.startCol + 2;
+                const centerJewel = document.querySelector(`[data-row="${horizontalMatch.row}"][data-col="${centerCol}"]`);
+                
+                if (centerJewel && !visited.has(`${horizontalMatch.row}-${centerCol}`)) {
+                    bonusBoxes.push({ row: horizontalMatch.row, col: centerCol, type: 'white' });
+                    
+                    // Play jewel make sound for white bonus creation
+                    this.e.s.p("jewel_make");
+                    
+                    visited.add(`${horizontalMatch.row}-${centerCol}`);
+                }
+                
+                // Add all 5 jewels to matches EXCEPT the center (bonus box)
+                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
+                    const key = `${horizontalMatch.row}-${c}`;
+                    if (!visited.has(key) && c !== centerCol) {
+                        matches.push({ row: horizontalMatch.row, col: c });
+                        visited.add(key);
+                    }
+                }
+            } else {
+                // Regular 3, 4, or 5 jewel match (no bonus box)
+                for (let c = horizontalMatch.startCol; c <= horizontalMatch.endCol; c++) {
+                    const key = `${horizontalMatch.row}-${c}`;
+                    if (!visited.has(key)) {
+                        matches.push({ row: horizontalMatch.row, col: c });
+                        visited.add(key);
+                    }
+                }
+            }
+        });
+        
+        verticalMatches.forEach(verticalMatch => {
+            if (verticalMatch.length === 5 && allowBonusBoxes) {
+                // Handle 5-jewel match with white bonus box
+                const centerRow = verticalMatch.startRow + 2;
+                const centerJewel = document.querySelector(`[data-row="${centerRow}"][data-col="${verticalMatch.col}"]`);
+                
+                if (centerJewel && !visited.has(`${centerRow}-${verticalMatch.col}`)) {
+                    bonusBoxes.push({ row: centerRow, col: verticalMatch.col, type: 'white' });
+                    
+                    // Play jewel make sound for white bonus creation
+                    this.e.s.p("jewel_make");
+                    
+                    visited.add(`${centerRow}-${verticalMatch.col}`);
+                }
+                
+                // Add all 5 jewels to matches EXCEPT the center (bonus box)
+                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
+                    const key = `${r}-${verticalMatch.col}`;
+                    if (!visited.has(key) && r !== centerRow) {
+                        matches.push({ row: r, col: verticalMatch.col });
+                        visited.add(key);
+                    }
+                }
+            } else {
+                // Regular 3, 4, or 5 jewel match (no bonus box)
+                for (let r = verticalMatch.startRow; r <= verticalMatch.endRow; r++) {
+                    const key = `${r}-${verticalMatch.col}`;
+                    if (!visited.has(key)) {
+                        matches.push({ row: r, col: verticalMatch.col });
+                        visited.add(key);
+                    }
+                }
+            }
+        });
         
         // Group matches by color for proper scoring
         const matchesByColor = {};
@@ -1601,6 +1579,8 @@ export class Scene {
                 matchesByColor[color].push(match);
             }
         });
+        
+
         
         return { matches, bonusBoxes, matchesByColor };
     }
