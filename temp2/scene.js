@@ -220,7 +220,10 @@ export class Scene {
             <div id="jewelGrid" class="jewel-grid">
                 <div class="checkerboard-grid"></div>
             </div>
-            
+            <div class="jewel-buttons">
+                <div id="playButton">PLAY</div>
+                <div id="instructionsButton">INSTRUCTIONS</div>
+            </div>
         `;
         document.body.appendChild(gameContainer);
         
@@ -254,8 +257,8 @@ export class Scene {
         this.positionUI();
         
         // Add button event listeners
-        const playButton = document.getElementById("playButton");
-        const instructionsButton = document.getElementById('instructionsButton');
+        const playButton = document.querySelector('.jewel-buttons #playButton');
+        const instructionsButton = document.querySelector('.jewel-buttons #instructionsButton');
         
         // console.log('Found play button:', playButton);
         // console.log('Found instructions button:', instructionsButton);
@@ -266,10 +269,6 @@ export class Scene {
                 // console.log('Play button clicked!', e);
                 e.preventDefault();
                 e.stopPropagation();
-                
-                // Play start sound when play button is clicked
-                this.e.s.p("jewel_start");
-                
                 this.startGame();
                 const buttonContainer = document.querySelector('.jewel-buttons');
                 if (buttonContainer) {
@@ -314,9 +313,10 @@ export class Scene {
     positionUI() {
         const gridElement = document.getElementById('jewelGrid');
         const meterElement = document.querySelector('.jewel-meter');
+        const buttonsElement = document.querySelector('.jewel-buttons');
         const circleElement = document.querySelector('.jewel-circle');
         
-        if (gridElement && meterElement && circleElement) {
+        if (gridElement && meterElement && buttonsElement && circleElement) {
             const gridRect = gridElement.getBoundingClientRect();
             const viewportHeight = window.innerHeight;
             const viewportCenter = viewportHeight / 2;
@@ -333,6 +333,13 @@ export class Scene {
             
             // Set meter width to match grid width exactly (minus 4px for padding)
             meterElement.style.width = (gridRect.width - 4) + 'px';
+            
+            // Position buttons: viewport center + half grid height + 30px
+            const buttonsTop = viewportCenter + halfGridHeight + 20;
+            buttonsElement.style.top = buttonsTop + 'px';
+            
+            // Set buttons width to match grid width
+            buttonsElement.style.width = gridRect.width + 'px';
         }
     }
 
@@ -531,19 +538,6 @@ export class Scene {
         
         if (startMenu && playButton) {
             startMenu.style.display = 'flex';
-            
-            // Ensure splash overlay and start menu are visible
-            const splashOverlay = document.getElementById('splashOverlay');
-            const startMenu = document.getElementById('startMenu');
-            
-            if (splashOverlay) {
-                gsap.set(splashOverlay, { opacity: 1 });
-            }
-            
-            if (startMenu) {
-                startMenu.style.opacity = '1';
-            }
-            
             playButton.onclick = () => this.startGame();
             
             if (instructionsButton && instructionsOverlay && closeInstructionsButton) {
@@ -561,77 +555,11 @@ export class Scene {
     }
 
     startGame() {
-        // Immediately fade out the start menu
-        const startMenu = document.getElementById('startMenu');
-        
-        if (startMenu) {
-            startMenu.style.opacity = '0';
-            setTimeout(() => {
-                startMenu.style.display = 'none';
-            }, 1000);
-        }
-        
-        // Start countdown sequence - splash overlay will fade out after countdown
-        this.startCountdown();
-    }
-
-    startCountdown() {
-        
-        const countdownNumber = document.getElementById('countdownNumber');
-        
-        if (!countdownNumber) return;
-        
-        let count = 3;
-        const countdown = () => {
-            if (count > 0) {
-                countdownNumber.textContent = count;
-                countdownNumber.style.animation = 'none';
-                countdownNumber.offsetHeight; // Trigger reflow
-                countdownNumber.style.animation = 'countdownPulse 0.8s ease-in-out';
-                countdownNumber.style.opacity = '1';
-                
-                // Play tick sound for each countdown number
-                this.e.s.p("tick");
-                
-                setTimeout(() => {
-                    countdownNumber.classList.add('fadeOut');
-                    setTimeout(() => {
-                        countdownNumber.classList.remove('fadeOut');
-                        count--;
-                        if (count > 0) {
-                            countdown();
-                        } else {
-                            // Countdown finished, hide the countdown number and start splash overlay fade immediately
-                            countdownNumber.style.opacity = '0';
-                            
-                            // Fade out splash overlay with GSAP immediately
-                            const splashOverlay = document.getElementById('splashOverlay');
-                            if (splashOverlay) {
-                                gsap.to(splashOverlay, {
-                                    opacity: 0,
-                                    duration: 0.2,
-                                    ease: "power2.out",
-                                    onComplete: () => {
-                                        // Start the game after splash overlay fades out
-                                        this.actuallyStartGame();
-                                    }
-                                });
-                            } else {
-                                // Fallback if splash overlay not found
-                                this.actuallyStartGame();
-                            }
-                        }
-                    }, 300);
-                }, 500);
-            }
-        };
-        
-        countdown();
-    }
-
-    actuallyStartGame() {
         const startMenu = document.getElementById('startMenu');
         if (startMenu) startMenu.style.display = 'none';
+        
+        // Play start sound
+        this.e.s.p("jewel_start");
         
         this.gameStarted = true;
         this.startTimer();
@@ -653,13 +581,13 @@ export class Scene {
         const minutes = Math.floor(this.timeLeft / 60);
         const seconds = this.timeLeft % 60;
         const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        const upperRightDiv = document.getElementById('upperRightDiv');
-        if (upperRightDiv) upperRightDiv.textContent = timeString;
+        const timerDiv = document.getElementById('timerDiv');
+        if (timerDiv) timerDiv.textContent = timeString;
     }
 
     updateScoreDisplay() {
-        const upperLeftDiv = document.getElementById('upperLeftDiv');
-        if (upperLeftDiv) upperLeftDiv.textContent = `${this.score}`;
+        const scoreDiv = document.getElementById('scoreDiv');
+        if (scoreDiv) scoreDiv.textContent = `SCORE: ${this.score}`;
     }
 
     updateMultiplierDisplay() {
@@ -3179,55 +3107,47 @@ export class Scene {
             clearInterval(this.timerInterval);
         }
         
-        // Create stats array for endScore
-        const statsArray = [
-            ['MATCH 3', this.match3Count],
-            ['MATCH 4', this.match4Count],
-            ['MATCH 5', this.match5Count],
-            ['EXPLOSIONS', this.explosionCount],
-            ['BONUS BOX', this.bonusBoxCount],
-            ['SMALL BOARD CLEAR', this.smallClearCount],
-            ['BIG BOARD CLEAR', this.bigClearCount]
-        ];
+        const finalDiv = document.getElementById('finalDiv');
         
-        // Calculate bonus points (total score minus base match scores)
-        const match3Total = this.match3Count * 100;
-        const match4Total = this.match4Count * 150;
-        const match5Total = this.match5Count * 200;
-        const baseMatchScore = match3Total + match4Total + match5Total;
-        const bonusPoints = this.score - baseMatchScore;
-        
-        // Add bonus points and average multiplier to stats
-        if (bonusPoints > 0) {
-            statsArray.push(['BONUS POINTS', bonusPoints]);
+        if (finalDiv) {
+            // Calculate final score breakdown
+            const match3Total = this.match3Count * 100;
+            const match4Total = this.match4Count * 150;
+            const match5Total = this.match5Count * 200;
+            const explosionTotal = this.explosionCount * 250;
+            const bonusBoxTotal = this.bonusBoxCount * 500;
+            const smallClearTotal = this.smallClearCount * 1500;
+            const bigClearTotal = this.bigClearCount * 2000;
+            
+            // Calculate bonus points (total score minus base match scores)
+            const baseMatchScore = match3Total + match4Total + match5Total;
+            const bonusPoints = this.score - baseMatchScore;
+            
+            // Calculate average multiplier
+            const avgMultiplier = this.multiplierValues.length > 0 
+                ? (this.multiplierValues.reduce((sum, val) => sum + val, 0) / this.multiplierValues.length).toFixed(1)
+                : '1.0';
+            
+            // Populate the final score screen with existing HTML elements
+            document.getElementById('finalScoreValue').textContent = this.score;
+            document.getElementById('match3Count').textContent = this.match3Count;
+            document.getElementById('match4Count').textContent = this.match4Count;
+            document.getElementById('match5Count').textContent = this.match5Count;
+            document.getElementById('explosionCount').textContent = this.explosionCount;
+            document.getElementById('bonusBoxCount').textContent = this.bonusBoxCount;
+            document.getElementById('smallClearCount').textContent = this.smallClearCount;
+            document.getElementById('bigClearCount').textContent = this.bigClearCount;
+            document.getElementById('bonusPointsTotal').textContent = bonusPoints;
+            document.getElementById('avgMultiplier').textContent = avgMultiplier;
+            
+            finalDiv.style.display = 'flex';
         }
-        
-        const avgMultiplier = this.multiplierValues.length > 0 
-            ? (this.multiplierValues.reduce((sum, val) => sum + val, 0) / this.multiplierValues.length).toFixed(1)
-            : '1.0';
-        statsArray.push(['AVERAGE MULTIPLIER', avgMultiplier]);
-        
-        // Use endScore to create the final score overlay
-        this.e.endScore.createFinalScoreOverlay(this.score, statsArray);
     }
 
     restartGame() {
-        // Remove any existing final score overlay
-        const existingOverlay = document.querySelector('.finalScoreOverlay');
-        if (existingOverlay) {
-            existingOverlay.remove();
-        }
-        
-        // Reset splash overlay and start menu
-        const splashOverlay = document.getElementById('splashOverlay');
-        const startMenu = document.getElementById('startMenu');
-        
-        if (splashOverlay) {
-            gsap.set(splashOverlay, { opacity: 1 });
-        }
-        
-        if (startMenu) {
-            startMenu.style.opacity = '1';
+        const finalDiv = document.getElementById('finalDiv');
+        if (finalDiv) {
+            finalDiv.style.display = 'none';
         }
         
         this.score = 0;

@@ -353,11 +353,136 @@ body::before {
     display: none;
 }
 
-/* .finalScoreOverlay moved to shared.css */
+.finalScoreOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 1;
+}
 
-/* Old final score CSS removed - now handled by endScore.js */
+.finalScoreContent {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: hidden;
+    /* background: rgba(0, 0, 0, 1); */
+    /* border-radius: 20px; */
+    /* padding: 0px 10px; */
+    /* border: 2px solid rgba(255, 215, 0, 0.3); */
+}
 
-/* Old final score CSS removed - now handled by endScore.js */
+#finalScoreTitle {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #FFD700;
+    letter-spacing: 2px;
+}
+
+#finalScoreValue {
+    font-size: 48px;
+    font-weight: bold;
+    margin-bottom: 30px;
+    color: #FFD700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.scoreBreakdownContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+.scoreBreakdownItem {
+    display: flex;
+    align-items: center;
+    padding: 8px 15px;
+    height: auto;
+    gap: 30px;
+    position: relative;
+}
+
+.scoreBreakdownItem.totalItem {
+    /* Remove special styling for total items */
+}
+
+.breakdownLabel {
+    font-size: 16px;
+    font-weight: bold;
+    color: #FFD700;
+    text-align: left;
+    position: absolute;
+    left: 15px;
+    white-space: nowrap;
+}
+
+.breakdownJewel {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    /* margin-left: 5px; */
+}
+
+.breakdownCalculation {
+    font-size: 16px;
+    color: white;
+    font-weight: bold;
+    text-align: right;
+    white-space: nowrap;
+    min-width: 150px;
+    flex-shrink: 0;
+    position: absolute;
+    right: 15px;
+}
+
+.breakdownCount {
+    color: #4CAF50;
+}
+
+.breakdownTotal {
+    color: #FFD700;
+}
+
+/* Mobile responsive styles for final score screen */
+@media (max-width: 768px) {
+    .finalScoreContent {
+        /* padding: 20px; */
+        max-width: 95%;
+    }
+    
+    #finalScoreTitle {
+        font-size: 28px;
+    }
+    
+    #finalScoreValue {
+        font-size: 36px;
+    }
+    
+    /* Keep the same horizontal layout on mobile */
+    .scoreBreakdownItem {
+        /* Same as desktop - horizontal layout */
+    }
+    
+    .breakdownLabel {
+        font-size: 14px; /* Slightly smaller for mobile */
+    }
+    
+    .breakdownJewel {
+        width: 20px; /* Slightly smaller for mobile */
+        height: 20px;
+        transform: translateY(5px);
+    }
+    
+    .breakdownCalculation {
+        font-size: 14px; /* Slightly smaller for mobile */
+    }
+}
 
 /* Removed background effects */
 
@@ -427,7 +552,18 @@ body::before {
     transition: width 0.5s ease;
 }
 
-/* #scoreBreakdown removed - now handled by endScore.js */
+#scoreBreakdown {
+    width: 80%;
+    max-width: 400px;
+    margin-bottom: 30px;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
+}
 
 @keyframes scoreContainerGlow {
     0%, 100% {
@@ -588,9 +724,28 @@ body::before {
     z-index: 3001;
 }
 
-/* upperLeftDiv moved to shared.css */
+#scoreDiv{
+    top: 5px;
+    left: 10px;
+    color: white;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-family: "Montserrat", sans-serif;
+    z-index: 9001;
+}
 
-/* upperRightDiv moved to shared.css */
+#timerDiv{
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    color: white;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-family: "Montserrat", sans-serif;
+    z-index: 9000;
+}
 
 #frameCounter{
     position: absolute;
@@ -634,7 +789,19 @@ body::before {
     min-width: fit-content;
 }
 
-/* topDiv moved to shared.css */
+#topDiv{
+    position: absolute;
+    width: 100%;
+    height: 25px;
+    z-index: 2000;
+    background: linear-gradient(to bottom, #505050, #303030);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    font-family: "Montserrat", sans-serif;
+    top: 0px;
+}
 
 #bonusDisplay{
     text-align: center;
@@ -747,7 +914,19 @@ body::before {
     transform: scaleY(0);
 }
 
-/* bonusDiv moved to shared.css */
+#bonusDiv{
+    position: absolute;
+    width: 100%;
+    height: 25px;
+    z-index: 2000;
+    background: linear-gradient(to bottom, #505050, #303030);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    font-family: "Montserrat", sans-serif;
+    bottom: 0px;
+}
 
 #bonusButtonContainer{
     position: fixed;
@@ -774,17 +953,130 @@ body::before {
     transform: scale(1.1);
 }
 
-/* startMenu and startMenuContainer moved to shared.css */
+#startMenu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+    pointer-events: none;
+}
 
-/* splashImage moved to shared.css */
+#startMenuContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: opacity 0.5s ease-out;
+}
 
-/* playButton moved to shared.css */
+#splashImage {
+    width: 300px;
+    height: auto;
+    max-width: 80vw;
+    opacity: 0;
+}
 
-/* instructionsButton moved to shared.css */
+#playButton {
+    background: linear-gradient(to bottom, #FFD700, #FF8C00);
+    color: black;
+    font-size: 24px;
+    font-weight: bold;
+    font-family: "Montserrat", sans-serif;
+    letter-spacing: 2px;
+    padding: 5px 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    /* border: 1px solid rgba(255, 255, 255, 1); */
+    text-align: center;
+    min-width: 120px;
+    animation: playButtonGlow 2s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    /* border: 1px solid red; */
+}
 
-/* instructionsOverlay moved to shared.css */
+@keyframes playButtonGlow {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    }
+}
 
-/* instructionsContainer, instructionsTitle, instructionsText, instructionLine moved to shared.css */
+#playButton:hover {
+    transform: scale(1.05);
+    background: linear-gradient(to bottom, #FFD700, #FF8C00);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+#instructionsButton {
+    color: #FFD700;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: "Montserrat", sans-serif;
+    letter-spacing: 2px;
+    padding: 15px 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    min-width: 120px;
+    margin-top: -12px;
+}
+
+#instructionsButton:hover {
+    transform: scale(1.05);
+}
+
+#instructionsOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+#instructionsContainer {
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 40px;
+    /* border-radius: 15px; */
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    font-family: "Montserrat", sans-serif;
+}
+
+#instructionsTitle {
+    font-size: 28px;
+    font-weight: bold;
+    color: #f8b500;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+}
+
+#instructionsText {
+    margin-bottom: 20px;
+}
+
+.instructionLine {
+    font-size: 16px;
+    margin-bottom: 6px;
+    color: #cccccc;
+    text-transform: lowercase;
+}
 
 #cardImages {
     margin: 30px 0;
@@ -793,7 +1085,12 @@ body::before {
     align-items: center;
 }
 
-/* instructionDivider moved to shared.css */
+.instructionDivider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 6px 0;
+    width: 100%;
+}
 
 #bonusInstructions {
     margin-bottom: 30px;
@@ -822,7 +1119,22 @@ body::before {
     flex: 1;
 }
 
-/* closeInstructionsButton moved to shared.css */
+#closeInstructionsButton {
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: "Montserrat", sans-serif;
+    letter-spacing: 2px;
+    padding: 5px 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    display: inline-block;
+}
+
+#closeInstructionsButton:hover {
+    transform: scale(1.05);
+}
 
 #scorePopup{
     position: fixed;
@@ -856,7 +1168,7 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 8000;
     
 }
 
@@ -926,6 +1238,7 @@ body::before {
 .jewel-meter {
     position: fixed;
     width: min(90vw, 90vh, 500px);
+    height: 14px;
     height: 14px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 7px;
@@ -1015,44 +1328,6 @@ body::before {
     align-items: center;
     gap: 10px;
     /* border: 1px solid red; */
-}
-
-/* Jewel Circle Styles */
-.jewel-circle {
-    position: fixed;
-    width: 35px;
-    height: 25px;
-    background: linear-gradient(to bottom, #FFD700, #FF8C00);
-    border: 3px solid #2a2a2a;
-    border-radius: 25%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 200;
-    left: 50%;
-    transform: translateX(-50%);
-    pointer-events: none;
-}
-
-.jewel-circle span {
-    color: #333333;
-    font-size: 14px;
-    letter-spacing: 1px;
-    font-weight: bold;
-    font-family: "Montserrat", sans-serif;
-}
-
-/* Ensure vertical centering and raise the 'x' by 2px relative to the number */
-.jewel-circle .x {
-    position: relative;
-    top: -1px;
-    font-size: 12px;
-    transform: translateX(1px);
-}
-
-.jewel-circle .multiplier {
-    line-height: 1;
-    transform: translateX(1px);
 }
 
 /* Jewel Grid Styles - 8x8 responsive flexbox layout */
@@ -1360,120 +1635,6 @@ body::before {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
-}
-
-/* ------------------------------------------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------------------------------------------- */
-
-/* COLOR GRAPHICS  */
-/* Colors are now defined in shared.css */
-
-/* Additional instruction elements not in shared.css */
-#instructionsImage {
-    width: 150px;
-}
-
-#instructionsText {
-    margin-bottom: 20px;
-}
-
-#playButton {
-    background: linear-gradient(to bottom, #2efff0, #2177d8);
-    color: white;
-    z-index: 2000;
-}
-
-#instructionsButton{
-    color: #2efff0;
-    text-shadow: 1px 1px 1px rgba(0, 0, 0, 1);
-    z-index: 2000;
-}
-
-#topDiv, #bonusDiv {
-    /* background: linear-gradient(to bottom, #ffe259, #ffa751); */
-    /* background: linear-gradient(to bottom, #7d35b1, #440b6d); */
-    background: linear-gradient(to bottom, #737373, #343434);
-}
-
-#upperLeftDiv, #upperRightDiv{
-    color: white;
-}
-
-#startMenu{
-    /* pointer-events handled by individual elements */
-}
-
-/* Splash overlay and countdown styles */
-#splashOverlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    z-index: 1001;
-    pointer-events: none;
-    border-radius: 10px;
-}
-
-#countdownOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    z-index: -1000;
-    opacity: 0;
-    pointer-events: none;
-    display: none
-}
-
-.countdownNumber {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Montserrat', sans-serif;
-    font-size: 80px;
-    font-weight: bold;
-    color: #ffffff;
-    animation: countdownPulse 0.8s ease-in-out;
-    opacity: 0;
-    z-index: 5000;
-    pointer-events: none;
-    text-align: center;
-    width: 100%;
-    text-shadow: 0 8px 16px rgba(0, 0, 0, 0.8);
-}
-
-@keyframes countdownPulse {
-    0% {
-        opacity: 0;
-    }
-    50% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 1;
-    }
-}
-
-.countdownNumber.fadeOut {
-    animation: countdownFadeOut 0.3s ease-out forwards;
-}
-
-@keyframes countdownFadeOut {
-    0% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0;
-    }
 }
 
 

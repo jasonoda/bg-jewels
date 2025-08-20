@@ -5,12 +5,13 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Jewel Match</title>
+    <title>Jewel Rush</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/shared.css">
     <link rel="stylesheet" href="src/main.css">
 
     <!--meta---------------------------------------------------------------------------------------------------------- -->
@@ -49,26 +50,33 @@
 
     <div id="feedback">Jewel Match - Drag jewels to swap adjacent pieces</div>
 
-    <!-- Additional UI Elements -->
+    <div id="loadingImage"></div>
+    <div id="loadingBack"></div>
+
+    <div id="fader"></div>
+    <div id="faderBlack"></div>
+
+    <div id="countdownOverlay"></div>
+    <div class="countdownNumber" id="countdownNumber">3</div>
+
     <div class="ui" id="levelDiv"></div>
-    <div class="ui" id="scoreDiv">SCORE: 0</div>
-    <div class="ui" id="timerDiv">2:30</div>
+    <div class="ui" id="upperLeftDiv">0</div>
+    <div class="ui" id="upperRightDiv">2:30</div>
     <div class="ui" id="frameCounter">FPS: 0</div>
     <div id="scorePopup">+100</div>
 
-   
-    <div id="topDiv">
-    </div>
+    <div id="topDiv"></div>
+    <div id="bonusDiv"></div>
 
-    <div id="bonusDiv">
-    </div>
+    <div id="splashOverlay"></div>
 
     <!-- Start Menu -->
     <div id="startMenu">
+        
         <div id="startMenuContainer">
             <img id="splashImage" src="src/images/splashImage.png" alt="Splash">
-            <!-- <div id="playButton">PLAY</div> -->
-            <!-- <div id="instructionsButton">INSTRUCTIONS</div> -->
+            <div id="playButton">PLAY</div>
+            <div id="instructionsButton">INSTRUCTIONS</div>
         </div>
     </div>
 
@@ -110,111 +118,6 @@
             <div id="closeInstructionsButton">CLOSE</div>
         </div>
     </div>
-
-    <!-- Final Score Screen -->
-    <div id="finalDiv">
-        <div class="finalScoreOverlay"></div>
-        <div class="finalScoreContent">
-            <div id="finalScoreTitle">FINAL SCORE</div>
-            <div id="finalScoreValue">0</div>
-            
-            <div class="scoreBreakdownContainer">
-                <div class="scoreBreakdownItem">
-                    <div class="breakdownLabel">
-                       MATCH 3
-                    </div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownCount" id="match3Count">0</span>
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem">
-                    <div class="breakdownLabel">
-                        MATCH 4
-                    </div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownCount" id="match4Count">0</span>
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem">
-                    <div class="breakdownLabel">
-                        MATCH 5
-                    </div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownCount" id="match5Count">0</span>
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem">
-                    <div class="breakdownLabel">
-                        EXPLOSIONS
-                        <img src="src/images/jewel_l.png" alt="Grey Bonus Box" class="breakdownJewel">
-                    </div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownCount" id="explosionCount">0</span>
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem">
-                    <div class="breakdownLabel">
-                        BONUS BOX
-                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
-                    </div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownCount" id="bonusBoxCount">0</span>
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem">
-                    <div class="breakdownLabel">
-                        SMALL BOARD CLEAR
-                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
-                        <img src="src/images/jewel_l.png" alt="Grey Bonus Box" class="breakdownJewel">
-                    </div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownCount" id="smallClearCount">0
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem">
-                    <div class="breakdownLabel">
-                        BIG BOARD CLEAR
-                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
-                        <img src="src/images/jewel_w.png" alt="White Bonus Box" class="breakdownJewel">
-                    </div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownCount" id="bigClearCount">0</span>
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem totalItem" style="display: none;">
-                    <div class="breakdownLabel">BONUS POINTS</div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownTotal" id="bonusPointsTotal">0</span>
-                    </div>
-                </div>
-                
-                <div class="scoreBreakdownItem totalItem">
-                    <div class="breakdownLabel">AVERAGE BONUS MULT</div>
-                    <div class="breakdownCalculation">
-                        <span class="breakdownTotal" id="avgMultiplier">1.0</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- loading -->
-
-    <div id="loadingImage"></div>
-    <div id="loadingBack"></div>
-
-    
-
-    <!-- Fader elements -->
-    <div id="fader"></div>
-    <div id="faderBlack"></div>
 
 </body>
 </html>

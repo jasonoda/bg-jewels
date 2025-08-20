@@ -6,7 +6,8 @@ export class Sounds {
         this.e=e;
         this.soundArray = ["click1", 
             "match1", "match2", "match3", "match4", "match5", "match6", "match7", "match8", "match9", "match10",
-            "jewel_clear", "jewel_explosion", "jewel_result", "jewel_start", "jewel_white", "jewel_make", "jewel_cascade", "loseStreak"
+            "jewel_clear", "jewel_explosion", "jewel_result", "jewel_start", "jewel_white", "jewel_make", "jewel_cascade", "loseStreak",
+            "tick"
         ];
         this.loadedSounds = [];
 

@@ -25,6 +25,10 @@ export class Input {
   
               this.keyUp = true;
   
+          } else if (event.key === "q" || event.key === "Q") {
+
+            this.e.scene.timeLeft = 3;
+  
           } else if (event.key === "ArrowDown" || event.key === "s" || event.key === "S") {
   
               this.keyDown = true;

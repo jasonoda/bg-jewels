@@ -1,6 +1,6 @@
 {
   "index": {
-    "js": "index-bundle-dcd05cc99a562923fba7.js"
+    "js": "index-bundle-df14010483d41e830bc0.js"
   },
   "": {
     "mp3": [
@@ -58,6 +58,7 @@
     ],
     "jpg": "src/images/cardBack.jpg",
     "png": [
+      "src/images/splashImage.png",
       "src/images/jewel_w.png",
       "src/images/jewel_g.png",
       "src/images/jewel_r.png",
@@ -65,8 +66,7 @@
       "src/images/jewel_b.png",
       "src/images/jewel_l.png",
       "src/images/jewel_p.png",
-      "src/images/background.png",
-      "src/images/splashImage.png"
+      "src/images/background.png"
     ],
     "svg": [
       "src/images/cards/KS.svg",
@@ -131,7 +131,11 @@
       "game.html",
       "index.html"
     ],
-    "css": "edb23d6982e7f80d060d.css",
+    "css": [
+      "0cdaa9db970f65cedde5.css",
+      "edb23d6982e7f80d060d.css"
+    ],
+    "js": "src_starScores_json-bundle-df14010483d41e830bc0.js",
     "ini": "src/sounds/desktop.ini"
   }
 }
