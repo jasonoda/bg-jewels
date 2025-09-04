@@ -39,6 +39,65 @@ body{
     position: relative;
 }
 
+#mineBackground {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('images/mine.png');
+    background-size: auto 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* New Score and Time Display */
+#scoreTimeContainer {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 24px;
+    background: linear-gradient(to bottom, #2a2a2a 0%, #0a0a0a 100%);
+    border-radius: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    font-family: "Montserrat", sans-serif;
+    letter-spacing: 1px;
+}
+
+#scoreDisplay {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    flex: 1;
+    transform: translateY(-1px);
+}
+
+#scoreTimeDivider {
+    color: white;
+    font-size: 14px;
+    font-weight: 400;
+    text-align: center;
+    width: 10px;
+    transform: translateY(-2px);
+}
+
+#timeDisplay {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    flex: 1;
+    transform: translateY(-1px);
+}
+
 body::before {
     content: '';
     position: fixed;
@@ -882,6 +941,7 @@ body::before {
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    opacity: 0;
 }
 
 /* Jewel Circle Styles */
@@ -927,7 +987,7 @@ body::before {
     position: fixed;
     width: min(90vw, 90vh, 500px);
     height: 14px;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.7);
     border-radius: 7px;
     border: 2px solid rgba(255, 255, 255, 0.2);
     pointer-events: none;
@@ -1061,7 +1121,7 @@ body::before {
     width: min(90vw, 90vh, 500px);
     height: min(90vw, 90vh, 500px);
     padding: 10px;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.6);
     border-radius: 10px;
     border: 2px solid rgba(255, 255, 255, 0.2);
     pointer-events: auto;
@@ -1098,7 +1158,7 @@ body::before {
     height: 100%;
     pointer-events: none;
     z-index: 0;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 0, 0, 0.4);
 }
 
 .checkerboard-cell {
@@ -1382,13 +1442,13 @@ body::before {
 }
 
 #playButton {
-    background: linear-gradient(to bottom, #2efff0, #2177d8);
+    background: linear-gradient(to bottom, #d6c781, #af7e4d);
     color: white;
     z-index: 2000;
 }
 
 #instructionsButton{
-    color: #2efff0;
+    color: #6dc9c6;
     text-shadow: 1px 1px 1px rgba(0, 0, 0, 1);
     z-index: 2000;
 }
@@ -1396,7 +1456,8 @@ body::before {
 #topDiv, #bonusDiv {
     /* background: linear-gradient(to bottom, #ffe259, #ffa751); */
     /* background: linear-gradient(to bottom, #7d35b1, #440b6d); */
-    background: linear-gradient(to bottom, #737373, #343434);
+    /* background: linear-gradient(to bottom, #737373, #343434); */
+    background: linear-gradient(to bottom, #d6c781, #af7e4d);
 }
 
 #upperLeftDiv, #upperRightDiv{
@@ -1405,6 +1466,7 @@ body::before {
 
 #startMenu{
     /* pointer-events handled by individual elements */
+    transform: translateY(-50px);
 }
 
 /* Splash overlay and countdown styles */
@@ -1414,7 +1476,6 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
     z-index: 1001;
     pointer-events: none;
     border-radius: 10px;
@@ -1438,17 +1499,17 @@ body::before {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-family: 'Montserrat', sans-serif;
+    font-family: "Olympus Mount", sans-serif;
     font-size: 80px;
     font-weight: bold;
-    color: #ffffff;
+    color: #ede2b5;
     animation: countdownPulse 0.8s ease-in-out;
     opacity: 0;
     z-index: 5000;
     pointer-events: none;
     text-align: center;
     width: 100%;
-    text-shadow: 0 8px 16px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 @keyframes countdownPulse {

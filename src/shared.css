@@ -22,9 +22,9 @@
 /* SPLASH */
 
 #splashImage {
-    width: 300px;
+    width: 400px;
     height: auto;
-    max-width: 80vw;
+    max-width: 90vw;
     /* opacity: 0; */
     padding-bottom: 30px;
     animation: splashImageScale 3s ease-in-out infinite, splashImageBrightness 3s ease-in-out infinite;
@@ -35,7 +35,7 @@
         transform: scale(1);
     }
     50% {
-        transform: scale(1.03);
+        transform: scale(1.02);
     }
 }
 
@@ -44,7 +44,7 @@
         filter: brightness(1);
     }
     50% {
-        filter: brightness(1.75);
+        filter: brightness(1.2);
     }
 }
 
@@ -318,22 +318,3 @@
 }
 
 
-#upperLeftDiv{
-    top: 5px;
-    left: 10px;
-    font-size: 9pt;
-    font-weight: 700;
-    letter-spacing: 1px;
-    font-family: "Montserrat", sans-serif;
-    z-index: 3200;
-}
-
-#upperRightDiv{
-    top: 5px;
-    right: 10px;
-    font-size: 9pt;
-    font-weight: 700;
-    letter-spacing: 1px;
-    font-family: "Montserrat", sans-serif;
-    z-index: 3200;
-}

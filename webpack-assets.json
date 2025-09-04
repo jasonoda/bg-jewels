@@ -1,8 +1,9 @@
 {
   "index": {
-    "js": "index-bundle-df14010483d41e830bc0.js"
+    "js": "index-bundle-ee4cc1aa76a3cfed3f91.js"
   },
   "": {
+    "js": "918-bundle-ee4cc1aa76a3cfed3f91.js",
     "mp3": [
       "src/sounds/introMusic.mp3",
       "src/sounds/softBoom.mp3",
@@ -56,9 +57,9 @@
       "src/sounds/place.mp3",
       "src/sounds/click1.mp3"
     ],
-    "jpg": "src/images/cardBack.jpg",
     "png": [
       "src/images/splashImage.png",
+      "src/images/mine.png",
       "src/images/jewel_w.png",
       "src/images/jewel_g.png",
       "src/images/jewel_r.png",
@@ -68,6 +69,7 @@
       "src/images/jewel_p.png",
       "src/images/background.png"
     ],
+    "jpg": "src/images/cardBack.jpg",
     "svg": [
       "src/images/cards/KS.svg",
       "src/images/cards/KH.svg",
@@ -127,15 +129,11 @@
       "src/images/cards/2B.svg"
     ],
     "ttf": "661aebe2b21204b02d9e.ttf",
-    "html": [
-      "game.html",
-      "index.html"
-    ],
+    "html": "game.html",
     "css": [
       "0cdaa9db970f65cedde5.css",
       "edb23d6982e7f80d060d.css"
     ],
-    "js": "src_starScores_json-bundle-df14010483d41e830bc0.js",
     "ini": "src/sounds/desktop.ini"
   }
 }

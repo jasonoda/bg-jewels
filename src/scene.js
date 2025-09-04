@@ -633,6 +633,16 @@ export class Scene {
         const startMenu = document.getElementById('startMenu');
         if (startMenu) startMenu.style.display = 'none';
         
+        // Fade in the jewel game container
+        const gameContainer = document.getElementById('jewelGameContainer');
+        if (gameContainer) {
+            gsap.to(gameContainer, {
+                opacity: 1,
+                duration: 1,
+                ease: "power2.out"
+            });
+        }
+        
         this.gameStarted = true;
         this.startTimer();
         this.updateScoreDisplay();
@@ -653,13 +663,13 @@ export class Scene {
         const minutes = Math.floor(this.timeLeft / 60);
         const seconds = this.timeLeft % 60;
         const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        const upperRightDiv = document.getElementById('upperRightDiv');
-        if (upperRightDiv) upperRightDiv.textContent = timeString;
+        const timeDisplay = document.getElementById('timeDisplay');
+        if (timeDisplay) timeDisplay.textContent = timeString;
     }
 
     updateScoreDisplay() {
-        const upperLeftDiv = document.getElementById('upperLeftDiv');
-        if (upperLeftDiv) upperLeftDiv.textContent = `${this.score}`;
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        if (scoreDisplay) scoreDisplay.textContent = `${this.score}`;
     }
 
     updateMultiplierDisplay() {
@@ -3216,6 +3226,12 @@ export class Scene {
         const existingOverlay = document.querySelector('.finalScoreOverlay');
         if (existingOverlay) {
             existingOverlay.remove();
+        }
+        
+        // Reset jewel game container opacity
+        const gameContainer = document.getElementById('jewelGameContainer');
+        if (gameContainer) {
+            gsap.set(gameContainer, { opacity: 0 });
         }
         
         // Reset splash overlay and start menu
